@@ -25,6 +25,11 @@ Data should be 32 bits compliant to nicely reasonate with ESP32 architecture. Th
 ![SPI Master Data Frame](docs/diagrams/spi_master_data_frame.png)
 SPI Master Data Frame
 
+Slave's response data frame deals only with the brightness status. No extra addressing is required as the master knows which LED brightness status it requested.
+
+![SPI Slave Data Frame](docs/diagrams/spi_slave_data_frame.png)
+SPI Slave Data Frame
+
 ## Hardware
 This project makes use of:
 
