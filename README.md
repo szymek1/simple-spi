@@ -4,10 +4,26 @@ This project implements SPI-based communication between a microcontroller and an
 
 The microcontroller acts as an SPI master and sends commands to an FPGA which servers as a slave. The commands are:
 
-- light up/down an LED
+- light up/down an LED (by specifying brightness level)
 - get LED status
 
 FPGA in return sends back responses describing its action.
+
+## Data frames
+In order to meet specifications of [ESP32 SPI master drivers](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/peripherals/spi_master.html) both master and slave data frames were designed to meet the constraints enforced by the documentation.
+
+The documentation defines a transaction as a singular act of asserting the CS line -> transferring data back and forth -> deasserting CS. Withing a single transaction the following states were described:
+
+- ```command```: defining type of command: read/write
+- ```address```: defining address of read/write register
+- ```dummy```: extra meaningless bits issued to meet clock constraints
+- ```read```: read operation
+- ```write```: write operation
+
+Data should be 32 bits compliant to nicely reasonate with ESP32 architecture. The documentation indicates that by default ```uint8_t``` is used and data that has to be sent which is less than 8 bit will be sent as 8 bit chink regardless with some garbage bits after the LSB (The proper data should start at the MSB of this 8 bit chunk).
+
+![SPI Master Data Frame](docs/diagrams/spi_master_data_frame.png)
+SPI Master Data Frame
 
 ## Hardware
 This project makes use of:
