@@ -23,12 +23,27 @@ The documentation defines a transaction as a singular act of asserting the CS li
 Data should be 32 bits compliant to nicely reasonate with ESP32 architecture. The documentation indicates that by default ```uint8_t``` is used and data that has to be sent which is less than 8 bit will be sent as 8 bit chink regardless with some garbage bits after the LSB (The proper data should start at the MSB of this 8 bit chunk).
 
 ![SPI Master Data Frame](docs/diagrams/spi_master_data_frame.png)
+
 SPI Master Data Frame
 
 Slave's response data frame deals only with the brightness status. No extra addressing is required as the master knows which LED brightness status it requested.
 
 ![SPI Slave Data Frame](docs/diagrams/spi_slave_data_frame.png)
+
 SPI Slave Data Frame
+
+## Implementation
+The implementation can be divided into C and HDL part, where the FPGA part was implemented with Verilog.
+
+### FPGA
+Within ```src/hdl/``` modules implementing both slave and master are located. SPI Master was implemented in Verilog in order to emulate ESP32 behavior.
+
+#### SPI Master- FPGA
+FPGA implementation of SPI Master is governed by the FSM which follows the transaction model defined inside EPS32 SPI Masster Driver documentaion. It consists of 5 states. The middle 3 states: ```COMMAND```, ```ADDRESS```, ```READ/WRITE``` consume data frames. This project utilizes an user available SPI2 which is a general-purpose SPI for ESP32, here it assumes one slave only. The clock selected to drive the testbench is 26MHz and it corresponds to full-duplex EPS32 SPI Master capability using GPIO Matrix Pins.
+
+![SPI Master FSM](docs/diagrams/spi_master_fpga_FSM.png)
+
+SPI Master FSM
 
 ## Hardware
 This project makes use of:
