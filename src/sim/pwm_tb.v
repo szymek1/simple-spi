@@ -44,7 +44,7 @@ module pwm_tb (
 
     initial begin
         clk = 0;
-        forever #(`CLK_NS/2) clk = ~clk; 
+        forever #(`SLAVE_CLK_NS/2) clk = ~clk; 
     end
 
     initial begin
@@ -59,7 +59,7 @@ module pwm_tb (
         // Reset condition
         i_enb = 1'b0;
         i_d   = 0;
-        #(`CLK_NS);
+        #(`SLAVE_CLK_NS);
 
         // Test 1: reseting pwm
         if (o_cnt == (2**`BRIGHTNESS_WIDTH - 1)) begin
@@ -77,12 +77,12 @@ module pwm_tb (
         // Test 2: duty cycle set to 25%
         i_enb = 1'b1;
         i_d   = 32; // 25% of 127
-        #(`CLK_NS * 2**`BRIGHTNESS_WIDTH);
+        #(`SLAVE_CLK_NS * 2**`BRIGHTNESS_WIDTH);
         $display("Test 2: inspect waveforms for o_pmw high for 32 clocks");
 
         // Test 3: duty cycle set to 0% (should output 0%)
         i_d = 0;
-        #(`CLK_NS * 2**`BRIGHTNESS_WIDTH); 
+        #(`SLAVE_CLK_NS * 2**`BRIGHTNESS_WIDTH); 
         if (o_pwm == 1'b0) begin
             $display("Test 3: PASS");
         end else begin
@@ -91,11 +91,11 @@ module pwm_tb (
 
         // Test 4: duty cycle set to 100% (should output 90%)
         i_d = 127; // 100% duty cycle
-        #(`CLK_NS * 2**`BRIGHTNESS_WIDTH);
+        #(`SLAVE_CLK_NS * 2**`BRIGHTNESS_WIDTH);
         $display("Test 4: inspect waveform for o_pwm high for 127 clocks");
 
         // End simulation
-        #(`CLK_NS * 5);
+        #(`SLAVE_CLK_NS * 5);
         $display("Simulation complete");
         $finish;
 
