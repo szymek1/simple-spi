@@ -97,7 +97,7 @@ module spi_master_mock (
                     bit_frame_cnt <= bit_frame_cnt + 1'b1;
                 end else if (bit_frame_cnt == `ADDR_BITS) begin
                     bit_frame_cnt <= 0;
-                    curr_state    <= ADDRESS;
+                    curr_state    <= WRITE;
                 end
             end
             WRITE  : begin
