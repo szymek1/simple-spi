@@ -81,6 +81,7 @@ module spi_master_mock (
                 end
             end
             COMMAND: begin
+                cs                <= `CS_ASSERT;
                 if (sclk_int == 1'b1 && bit_frame_cnt <= (`CMD_BITS - 1)) begin
                     mosi          <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
                     shift_reg_tx  <= shift_reg_tx << 1;
@@ -91,6 +92,7 @@ module spi_master_mock (
                 end
             end
             ADDRESS: begin
+                cs                <= `CS_ASSERT;
                 if (sclk_int == 1'b1 && bit_frame_cnt <= (`ADDR_BITS - 1)) begin
                     mosi          <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
                     shift_reg_tx  <= shift_reg_tx << 1;
@@ -101,6 +103,7 @@ module spi_master_mock (
                 end
             end
             WRITE  : begin
+                cs                <= `CS_ASSERT;
                 if (sclk_int == 1'b1 && bit_frame_cnt <= (`PAYLOAD_BITS - 1)) begin
                     mosi          <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
                     shift_reg_tx  <= shift_reg_tx << 1;
