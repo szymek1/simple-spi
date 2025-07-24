@@ -32,7 +32,7 @@ module spi_master_mock (
     output reg                            cs,          // chip select (active low)
     output wire                           sclk,        // clock signal issued to slave
     output reg                            mosi,        // serial master output
-    output wire [`BRIGHTNESS_WIDTH:0]     o_frame      // entire response
+    output wire [`BRIGHTNESS_WIDTH-1:0]   o_frame      // entire response
 );
 
     // SPI Master FSM
@@ -66,7 +66,7 @@ module spi_master_mock (
     end
     assign sclk = sclk_int;
 
-    // Write process
+    // Write process: triggered on the falling edge sclk_int
     always (posedge sysclk) begin 
         case (curr_state)
             IDLE   : begin
@@ -82,9 +82,9 @@ module spi_master_mock (
             end
             COMMAND: begin
                 cs                <= `CS_ASSERT;
-                if (sclk_int == 1'b1 && bit_frame_cnt <= (`CMD_BITS - 1)) begin
+                if (sclk_int && bit_frame_cnt <= (`CMD_BITS - 1)) begin
                     mosi          <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
-                    shift_reg_tx  <= shift_reg_tx << 1;
+                    shift_reg_tx <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
                     bit_frame_cnt <= bit_frame_cnt + 1'b1;
                 end else if (bit_frame_cnt == `CMD_BITS) begin
                     bit_frame_cnt <= 0;
@@ -93,9 +93,9 @@ module spi_master_mock (
             end
             ADDRESS: begin
                 cs                <= `CS_ASSERT;
-                if (sclk_int == 1'b1 && bit_frame_cnt <= (`ADDR_BITS - 1)) begin
+                if (sclk_int && bit_frame_cnt <= (`ADDR_BITS - 1)) begin
                     mosi          <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
-                    shift_reg_tx  <= shift_reg_tx << 1;
+                    shift_reg_tx <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
                     bit_frame_cnt <= bit_frame_cnt + 1'b1;
                 end else if (bit_frame_cnt == `ADDR_BITS) begin
                     bit_frame_cnt <= 0;
@@ -104,9 +104,9 @@ module spi_master_mock (
             end
             WRITE  : begin
                 cs                <= `CS_ASSERT;
-                if (sclk_int == 1'b1 && bit_frame_cnt <= (`PAYLOAD_BITS - 1)) begin
+                if (sclk_int && bit_frame_cnt <= (`PAYLOAD_BITS - 1)) begin
                     mosi          <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
-                    shift_reg_tx  <= shift_reg_tx << 1;
+                    shift_reg_tx <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
                     bit_frame_cnt <= bit_frame_cnt + 1'b1;
                 end else if (bit_frame_cnt == `PAYLOAD_BITS) begin
                     bit_frame_cnt <= 0;
@@ -124,17 +124,16 @@ module spi_master_mock (
         endcase
     end
 
-    // Read process
-    always (posedge sysclk) begin
-        if (sclk_int == 1'b1 && bit_rx_cnt <= (`PAYLOAD_BITS - 1)) begin
-            shift_reg_rx[bit_rx_cnt] <= miso;
-            shift_reg_rx             <= shift_reg_rx << 1;
-            bit_rx_cnt               <= bit_rx_cnt + 1'b1;
-        end else if (bit_rx_cnt == `PAYLOAD_BITS) begin
-            bit_frame_cnt <= 0;
-            shift_reg_rx  <= 0;
+    // Read process: triggered on the rising edge sclk_int
+    always @(posedge sysclk) begin
+        if (!sclk_int && curr_state != IDLE && curr_state != DONE) begin
+            shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], miso};
+            bit_rx_cnt <= bit_rx_cnt + 1;
+            if (bit_rx_cnt == `MASTER_FRAME_WIDTH - 1) begin
+                bit_rx_cnt <= 0;
+            end
         end
     end
-    assign o_frame = shift_reg_rx;
+    assign o_frame = shift_reg_rx[6:0];
 
 endmodule
