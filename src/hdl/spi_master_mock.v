@@ -36,12 +36,12 @@ module spi_master_mock (
 );
 
     // SPI Master FSM
-    localparam                    IDLE       3'b000;   // on transition from IDLE to COMMAND cs is asserted
-    localparam                    COMMAND    3'b001;
-    localparam                    ADDRESS    3'b010;
-    // localparam                    READ       3'b100;
-    localparam                    WRITE      3'b110;
-    localparam                    DONE       3'b111;   // deasserts cs
+    localparam                    IDLE       = 3'b000;   // on transition from IDLE to COMMAND cs is asserted
+    localparam                    COMMAND    = 3'b001;
+    localparam                    ADDRESS    = 3'b010;
+    // localparam                    READ       = 3'b100;
+    localparam                    WRITE      = 3'b110;
+    localparam                    DONE       = 3'b111;   // deasserts cs
 
     // Master transmitter + sclk generation
     reg [2:0]                     curr_state;
@@ -55,7 +55,7 @@ module spi_master_mock (
     reg [`MASTER_FRAME_WIDTH-1:0] shift_reg_rx = 0;    // receive shift register
 
     // 26MHz pulse generator
-    always (posedge sysclk) begin
+    always @(posedge sysclk) begin
         if (sclk_cnt == (`CLKS_PER_MASTER_SCLK - 1)) begin
             sclk_int <= 1'b1;
             sclk_cnt <= 0;
@@ -67,7 +67,7 @@ module spi_master_mock (
     assign sclk = sclk_int;
 
     // Write process: triggered on the falling edge sclk_int
-    always (posedge sysclk) begin 
+    always @(posedge sysclk) begin 
         case (curr_state)
             IDLE   : begin
                 cs               <= `CS_DEASSERT;
@@ -84,7 +84,7 @@ module spi_master_mock (
                 cs                <= `CS_ASSERT;
                 if (sclk_int && bit_frame_cnt <= (`CMD_BITS - 1)) begin
                     mosi          <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
-                    shift_reg_tx <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
+                    shift_reg_tx  <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
                     bit_frame_cnt <= bit_frame_cnt + 1'b1;
                 end else if (bit_frame_cnt == `CMD_BITS) begin
                     bit_frame_cnt <= 0;
@@ -95,7 +95,7 @@ module spi_master_mock (
                 cs                <= `CS_ASSERT;
                 if (sclk_int && bit_frame_cnt <= (`ADDR_BITS - 1)) begin
                     mosi          <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
-                    shift_reg_tx <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
+                    shift_reg_tx  <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
                     bit_frame_cnt <= bit_frame_cnt + 1'b1;
                 end else if (bit_frame_cnt == `ADDR_BITS) begin
                     bit_frame_cnt <= 0;
@@ -106,7 +106,7 @@ module spi_master_mock (
                 cs                <= `CS_ASSERT;
                 if (sclk_int && bit_frame_cnt <= (`PAYLOAD_BITS - 1)) begin
                     mosi          <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
-                    shift_reg_tx <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
+                    shift_reg_tx  <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
                     bit_frame_cnt <= bit_frame_cnt + 1'b1;
                 end else if (bit_frame_cnt == `PAYLOAD_BITS) begin
                     bit_frame_cnt <= 0;
