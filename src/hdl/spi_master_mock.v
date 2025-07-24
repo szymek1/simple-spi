@@ -47,11 +47,11 @@ module spi_master_mock (
     reg [2:0]                     curr_state;
     reg [4:0]                     bit_frame_cnt;       // indexing what is the current bit from data frame to send
     reg                           sclk_int;            // internal output master clock
-    reg [2:0]                     sclk_cnt   = 0;      // count cycles of 125Mhz frequency clock before issuing sclk pulse
+    reg [2:0]                     sclk_cnt     = 0;    // count cycles of 125Mhz frequency clock before issuing sclk pulse
     reg [`MASTER_FRAME_WIDTH-1:0] shift_reg_tx;        // transmit shift register
 
     // Master receiver
-    reg [2:0]                     bit_rx_cnt = 0;
+    reg [2:0]                     bit_rx_cnt   = 0;
     reg [`MASTER_FRAME_WIDTH-1:0] shift_reg_rx = 0;    // receive shift register
 
     // 26MHz pulse generator
