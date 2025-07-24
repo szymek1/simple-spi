@@ -6,6 +6,9 @@
 `define LED_MIN_BRIGHTNESS 0    // minimal level of brightness in %- min. duty cycle
 `define LED_MAX_BRIGHTNESS 90   // maximal level of brightness in %- max. duty cycle
 
+// SPI data frame
+`define MASTER_FRAME_WIDTH 24   // 24 bits wide master data frame
+
 // Simulation
 `define SLAVE_CLK_NS       8    // 125MHz => 8ns | Frequency related to Xilinx Zynq 7020
 `define MASTER_CLK_NS      38.5 // 26MHz =? 38.5ns | Frequency of ESP32 SPI Master     
