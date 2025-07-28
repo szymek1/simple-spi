@@ -57,14 +57,14 @@ module spi_master_mock (
     // 26MHz pulse generator
     always @(posedge sysclk) begin
         if (sclk_cnt == (`CLKS_PER_MASTER_SCLK - 1)) begin
-            sclk_int <= 1'b1;
-            sclk_cnt <= 0;
+            sclk_int   <= 1'b1;
+            sclk_cnt   <= 0;
         end else begin
-            sclk_int <= 1'b0;
-            sclk_cnt <= sclk_cnt + 1'b1;
+            sclk_int   <= 1'b0;
+            sclk_cnt   <= sclk_cnt + 1'b1;
         end
     end
-    assign sclk = sclk_int;
+    assign sclk     = sclk_int;
 
     // Write process: triggered on the falling edge sclk_int
     always @(posedge sysclk) begin 
@@ -126,9 +126,9 @@ module spi_master_mock (
 
     // Read process: triggered on the rising edge sclk_int
     always @(posedge sysclk) begin
-        if (!sclk_int && curr_state != IDLE && curr_state != DONE) begin
+        if (sclk_cnt == (`CLKS_PER_MASTER_SCLK - 1) && !sclk_int && curr_state != IDLE && curr_state != DONE) begin
             shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], miso};
-            bit_rx_cnt <= bit_rx_cnt + 1;
+            bit_rx_cnt   <= bit_rx_cnt + 1;
             if (bit_rx_cnt == `MASTER_FRAME_WIDTH - 1) begin
                 bit_rx_cnt <= 0;
             end
