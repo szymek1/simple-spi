@@ -5,6 +5,7 @@
 `define BRIGHTNESS_WIDTH     7    // brightness level can vary: 0%-100%; 7-bit number required to store the input value
 `define LED_MIN_BRIGHTNESS   0    // minimal level of brightness in %- min. duty cycle
 `define LED_MAX_BRIGHTNESS   90   // maximal level of brightness in %- max. duty cycle
+`define LED_ADDR_WIDTH       4    // 13 addressable LEDs with 4-bit long addresses
 
 // SPI
 // SPI data frame
