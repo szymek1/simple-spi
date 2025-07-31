@@ -13,6 +13,15 @@
 `define CLKS_PER_MASTER_SCLK 5    // FPGA has 125Mhz clock but ESP32 SPI Master has 26MHz, this parameter specifies how many 
                                   // 125Mhz frequency clock cycles to wait before issuing 25Mhz pulse
 
+// Master data frame enconding
+// CMD
+`define CMD_LED_SET          8'h1
+`define CMD_LED_READ         8'h2
+`define CMD_NOP              8'h0
+// ADDR
+`define ADDR_NONE            8'hD
+
+
 // SPI Master data frame is 24 bits wide and each section: command, address, payload
 // is equally 8 bits wide, however, when the data for a section isn't encoded with 8 bits
 // but with n-bits then first n-bits are important and the rest is garbage
