@@ -31,10 +31,10 @@ module spi_slave (
     input  wire                           sclk,
     input  wire                           cs,
     input  wire                           mosi,
-    input  wire                           tx_enb,  // acitve high to indicate that slave can 
-                                                   // send the data back
-    input  wire [`MASTER_FRAME_WIDTH-1:0] i_frame, // input data frame- created outside
-                                                   // transmitting LED data back
+    input  wire                           slv_tx_enb,  // acitve high to indicate that slave can 
+                                                       // send the data back
+    input  wire [`MASTER_FRAME_WIDTH-1:0] i_slv_frame, // input data frame- created outside
+                                                       // transmitting LED data back
     output wire                           miso,
     output reg  [`CMD_BITS-1:0]           o_cmd,
     output reg  [`ADDR_BITS-1:0]          o_addr,
@@ -153,11 +153,11 @@ module spi_slave (
 
     // Write process: triggered on the falling edge of sclk
     always @(posedge sysclk) begin
-        shift_reg_tx <= (tx_enb == 1'b1) ? i_frame : 0;
+        shift_reg_tx <= (slv_tx_enb == 1'b1) ? i_slv_frame : 0;
     end
 
     always @(posedge sysclk) begin
-        if (sclk_falling && tx_enb == 1'b1 && cs == `CS_ASSERT && bit_tx_cnt < `MASTER_FRAME_WIDTH) begin
+        if (sclk_falling && slv_tx_enb == 1'b1 && cs == `CS_ASSERT && bit_tx_cnt < `MASTER_FRAME_WIDTH) begin
             miso         <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
             shift_reg_tx <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
             bit_tx_cnt   <= bit_tx_cnt + 1'b1;
