@@ -20,6 +20,8 @@
 `define CMD_NOP              8'h0
 // ADDR
 `define ADDR_NONE            8'hD
+// PAYLOAD
+`define PAYLOAD_NONE         8'h0;
 
 
 // SPI Master data frame is 24 bits wide and each section: command, address, payload

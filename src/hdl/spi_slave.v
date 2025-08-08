@@ -73,7 +73,7 @@ module spi_slave (
                     bit_rx_cnt   <= 0;
                     shift_reg_rx <= 0;
                     slv_clk_cnt  <= 2'b0;
-                    curr_state   <= COMMAND; // as cs is laready asserted next slave-clk cycle we can
+                    curr_state   <= COMMAND; // as cs is already asserted next slave-clk cycle we can
                                              // begin reading data bits
                 end
                 COMMAND: begin
@@ -120,7 +120,11 @@ module spi_slave (
                     end
                 end
                 DONE   : begin
-                    rx_dv <= 1'b1;
+                    rx_dv      <= 1'b1; // single clock cycle pulse
+                    o_cmd      <= shift_reg_rx[23:16];
+                    o_addr     <= shift_reg_rx[15:8];
+                    o_payload  <= shift_reg_rx[7:0];
+                    curr_state <= IDLE;
 
                 end
                 default: curr_state <= IDLE;
@@ -131,7 +135,8 @@ module spi_slave (
             shift_reg_rx <= 0;
             slv_clk_cnt  <= 2'b0;
             o_cmd        <= `CMD_NOP;
-            o_addr       <= `ADDR_NONE
+            o_addr       <= `ADDR_NONE;
+            o_payload    <=  `PAYLOAD_NONE;
             curr_state   <= IDLE;
         end
 
