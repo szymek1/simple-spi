@@ -36,6 +36,9 @@ module spi_master_mock_tb (
     reg [`CMD_BITS-1:0]            cmd_bits;
     reg [`ADDR_BITS-1:0]           addr_bits;
     reg [`PAYLOAD_BITS-1:0]        payload_bits;
+    reg [`CMD_BITS-1:0]            rx_cmd_bits;
+    reg [`ADDR_BITS-1:0]           rx_addr_bits;
+    reg [`PAYLOAD_BITS-1:0]        rx_payload_bits;
     reg [`MASTER_FRAME_WIDTH-1:0]  slave_data_frame;
 
     // Outputs
@@ -74,7 +77,10 @@ module spi_master_mock_tb (
                      spi_master_mock_tb.o_frame);
 
         // Initial conditions
-        tx_enb = 1'b0;
+        tx_enb          = 1'b0;
+        rx_cmd_bits     = 8'b0;
+        rx_addr_bits    = 8'b0;
+        rx_payload_bits = 8'b0;
         #(3 * `SLAVE_CLK_NS);
 
         // Test 1: cs deasserted
@@ -87,56 +93,50 @@ module spi_master_mock_tb (
         // Test 2: only transmission (MSB convention)
         cmd_bits     = 8'b10000000;
         addr_bits    = 8'b10100000;
-        payload_bits = 8'b11010000;
+        payload_bits = 8'b11010001;
         i_frame      = {cmd_bits, addr_bits, payload_bits};
         tx_enb       = 1'b1;
 
         $display("Command bits testting...");
         #(`SLAVE_CLK_NS);
         for (i = 0; i < `CMD_BITS; i = i + 1) begin
-            #(`MASTER_CLK_NS);
-            if (cs == `CS_ASSERT) begin
-                $display("Test 2.1.%d cs asserted PASS", i);
-            end else begin
-                $display("Test 2.1.%d FAIL- got: %b, expected: %b", i, cs, `CS_DEASSERT);
+            @(negedge sclk) begin
+                #(4 * `SLAVE_CLK_NS);
+                rx_cmd_bits[`CMD_BITS - 1 - i] = mosi;
             end
-            if (mosi == cmd_bits[(`CMD_BITS-1) - i]) begin
-                $display("Test 2.1.%d mosi correct: %b", i, mosi);
-            end else begin
-                $display("Test 2.1.%d mosi incorrect: %b, expected: %b", i, mosi, cmd_bits[(`CMD_BITS-1) - i]);
-            end
+        end
+        if (rx_cmd_bits == cmd_bits) begin
+            $display("Test 2.1: PASS cmd bits correct: %b", rx_cmd_bits);
+        end else begin
+            $display("Test 2.1: FAIL cmd bits incorrect: %b, expected: %b", rx_cmd_bits, cmd_bits);
         end
 
         $display("Address bits testting...");
         #(`SLAVE_CLK_NS);
         for (i = 0; i < `ADDR_BITS; i = i + 1) begin
-            #(`MASTER_CLK_NS);
-            if (cs == `CS_ASSERT) begin
-                $display("Test 2.2.%d cs asserted PASS", i);
-            end else begin
-                $display("Test 2.2.%d FAIL- got: %b, expected: %b", i, cs, `CS_DEASSERT);
+            @(negedge sclk) begin
+                #(4 * `SLAVE_CLK_NS);
+                rx_addr_bits[`ADDR_BITS - 1 - i] = mosi;
             end
-            if (mosi == addr_bits[(`ADDR_BITS-1) - i]) begin
-                $display("Test 2.2.%d mosi correct: %b", i, mosi);
-            end else begin
-                $display("Test 2.2.%d mosi incorrect: %b, expected: %b", i, mosi, addr_bits[(`ADDR_BITS-1) - i]);
-            end
+        end
+        if (rx_addr_bits == addr_bits) begin
+            $display("Test 2.2: PASS addr bits correct: %b", rx_addr_bits);
+        end else begin
+            $display("Test 2.2: FAIL addr bits incorrect: %b, expected: %b", rx_addr_bits, addr_bits);
         end
 
         $display("Payload bits testting...");
         #(`SLAVE_CLK_NS);
         for (i = 0; i < `PAYLOAD_BITS; i = i + 1) begin
-            #(`MASTER_CLK_NS);
-            if (cs == `CS_ASSERT) begin
-                $display("Test 2.3.%d cs asserted PASS", i);
-            end else begin
-                $display("Test 2.3.%d FAIL- got: %b, expected: %b", i, cs, `CS_DEASSERT);
+            @(negedge sclk) begin
+                #(4 * `SLAVE_CLK_NS);
+                rx_payload_bits[`PAYLOAD_BITS - 1 - i] = mosi;
             end
-            if (mosi == payload_bits[(`PAYLOAD_BITS-1) - i]) begin
-                $display("Test 2.3.%d mosi correct: %b", i, mosi);
-            end else begin
-                $display("Test 2.3.%d mosi incorrect: %b, expected: %b", i, mosi, payload_bits[(`PAYLOAD_BITS-1) - i]);
-            end
+        end
+        if (rx_payload_bits == payload_bits) begin
+            $display("Test 2.3: PASS payload bits correct: %b", rx_payload_bits);
+        end else begin
+            $display("Test 2.3: FAIL payload bits incorrect: %b, expected: %b", rx_payload_bits, payload_bits);
         end
 
         // Test 3: simultaneous transmission and reception
@@ -146,6 +146,9 @@ module spi_master_mock_tb (
         cmd_bits         = 8'b01000000;
         addr_bits        = 8'b11101000;
         payload_bits     = 8'b10011000;
+        rx_cmd_bits      = 8'b0;
+        rx_addr_bits     = 8'b0;
+        rx_payload_bits  = 8'b0;
         i_frame          = {cmd_bits, addr_bits, payload_bits};
         slave_data_frame = {cmd_bits, addr_bits, payload_bits};
 
@@ -154,58 +157,58 @@ module spi_master_mock_tb (
         $display("Command bits testting...");
         #(`SLAVE_CLK_NS);
         for (i = 0; i < `CMD_BITS; i = i + 1) begin
-            #(`MASTER_CLK_NS/2);
-            miso = slave_data_frame[j];
-            #(`MASTER_CLK_NS/2);
-            if (cs == `CS_ASSERT) begin
-                $display("Test 3.1.%d cs asserted PASS", i);
-            end else begin
-                $display("Test 3.1.%d FAIL- got: %b, expected: %b", i, cs, `CS_DEASSERT);
+            @(posedge sclk) begin
+                #(2 * `SLAVE_CLK_NS);
+                miso = slave_data_frame[j];
             end
-            if (mosi == cmd_bits[(`CMD_BITS-1) - i]) begin
-                $display("Test 3.1.%d mosi correct: %b", i, mosi);
-            end else begin
-                $display("Test 3.1.%d mosi incorrect: %b, expected: %b", i, mosi, cmd_bits[(`CMD_BITS-1) - i]);
+            @(negedge sclk) begin
+                #(4 * `SLAVE_CLK_NS);
+                rx_cmd_bits[`CMD_BITS - 1 - i] = mosi;
             end
             j = j - 1;
+        end
+        if (rx_cmd_bits == cmd_bits) begin
+            $display("Test 3.1: PASS cmd bits correct: %b", rx_cmd_bits);
+        end else begin
+            $display("Test 3.1: FAIL cmd bits incorrect: %b, expected: %b", rx_cmd_bits, cmd_bits);
         end
 
         $display("Address bits testting...");
-        // #(`SLAVE_CLK_NS);
+        #(`SLAVE_CLK_NS);
         for (i = 0; i < `ADDR_BITS; i = i + 1) begin
-            #(`MASTER_CLK_NS/2);
-            miso = slave_data_frame[j];
-            #(`MASTER_CLK_NS/2);
-            if (cs == `CS_ASSERT) begin
-                $display("Test 3.2.%d cs asserted PASS", i);
-            end else begin
-                $display("Test 3.2.%d FAIL- got: %b, expected: %b", i, cs, `CS_DEASSERT);
+            @(posedge sclk) begin
+                #(2 * `SLAVE_CLK_NS);
+                miso = slave_data_frame[j];
             end
-            if (mosi == addr_bits[(`ADDR_BITS-1) - i]) begin
-                $display("Test 3.2.%d mosi correct: %b", i, mosi);
-            end else begin
-                $display("Test 3.2.%d mosi incorrect: %b, expected: %b", i, mosi, addr_bits[(`ADDR_BITS-1) - i]);
+            @(negedge sclk) begin
+                #(4 * `SLAVE_CLK_NS);
+                rx_addr_bits[`ADDR_BITS - 1 - i] = mosi;
             end
             j = j - 1;
         end
+        if (rx_addr_bits == addr_bits) begin
+            $display("Test 3.2: PASS addr bits correct: %b", rx_addr_bits);
+        end else begin
+            $display("Test 3.2: FAIL addr bits incorrect: %b, expected: %b", rx_addr_bits, addr_bits);
+        end
 
         $display("Payload bits testting...");
-        // #(`SLAVE_CLK_NS);
+        #(`SLAVE_CLK_NS);
         for (i = 0; i < `PAYLOAD_BITS; i = i + 1) begin
-            #(`MASTER_CLK_NS/2);
-            miso = slave_data_frame[j];
-            #(`MASTER_CLK_NS/2);
-            if (cs == `CS_ASSERT) begin
-                $display("Test 3.3.%d cs asserted PASS", i);
-            end else begin
-                $display("Test 3.3.%d FAIL- got: %b, expected: %b", i, cs, `CS_DEASSERT);
+            @(posedge sclk) begin
+                #(2 * `SLAVE_CLK_NS);
+                miso = slave_data_frame[j];
             end
-            if (mosi == payload_bits[(`PAYLOAD_BITS-1) - i]) begin
-                $display("Test 3.3.%d mosi correct: %b", i, mosi);
-            end else begin
-                $display("Test 3.3.%d mosi incorrect: %b, expected: %b", i, mosi, payload_bits[(`PAYLOAD_BITS-1) - i]);
+            @(negedge sclk) begin
+                #(4 * `SLAVE_CLK_NS);
+                rx_payload_bits[`PAYLOAD_BITS - 1 - i] = mosi;
             end
             j = j - 1;
+        end
+        if (rx_payload_bits == payload_bits) begin
+            $display("Test 3.3: PASS payload bits correct: %b", rx_payload_bits);
+        end else begin
+            $display("Test 3.3: FAIL payload bits incorrect: %b, expected: %b", rx_payload_bits, payload_bits);
         end
         
         $display("Evaluating received slave data frame...");

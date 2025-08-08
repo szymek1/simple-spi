@@ -105,9 +105,9 @@ module spi_slave_tb (
         #(3 * `SLAVE_CLK_NS);
 
         // Test 1: master transmission only (set LED 2 to 10% brightness)
-        mock_master_cmd_bits     = `CMD_LED_SET;
-        mock_master_addr_bits    = 8'h2;
-        mock_master_payload_bits = 8'hA;
+        mock_master_cmd_bits     = 8'b10000000;
+        mock_master_addr_bits    = 8'b10100000;
+        mock_master_payload_bits = 8'b11010000;
         i_frame                  = {mock_master_cmd_bits, 
                                     mock_master_addr_bits, 
                                     mock_master_payload_bits};

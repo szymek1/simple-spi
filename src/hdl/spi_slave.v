@@ -87,7 +87,7 @@ module spi_slave (
                 end
                 COMMAND: begin
                     rx_dv           <= 1'b0;
-                    if (sclk_rising && bit_rx_cnt < `CMD_BITS) begin
+                    if (sclk_rising && bit_rx_cnt < `CMD_BITS && slv_clk_cnt < 2'b10) begin
                         // we are on the rising endge and now we will begin to count until the middle
                         // of the rising part of the master-clock cycle for a stable data
                         slv_clk_cnt <= slv_clk_cnt + 1'b1;
@@ -104,7 +104,7 @@ module spi_slave (
                 end
                 ADDRESS: begin
                     rx_dv           <= 1'b0;
-                    if (sclk_rising && bit_rx_cnt < `ADDR_BITS) begin
+                    if (sclk_rising && bit_rx_cnt < `ADDR_BITS && slv_clk_cnt < 2'b10) begin
                         slv_clk_cnt <= slv_clk_cnt + 1'b1;
                     end else if (sclk_sync && bit_rx_cnt < `ADDR_BITS && slv_clk_cnt == 2'b10) begin
                         shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], mosi};
@@ -117,7 +117,7 @@ module spi_slave (
                 end
                 READ  : begin
                     rx_dv           <= 1'b0;
-                    if (sclk_rising && bit_rx_cnt < `PAYLOAD_BITS) begin
+                    if (sclk_rising && bit_rx_cnt < `PAYLOAD_BITS && slv_clk_cnt < 2'b10) begin
                         slv_clk_cnt <= slv_clk_cnt + 1'b1;
                     end else if (sclk_sync && bit_rx_cnt < `PAYLOAD_BITS && slv_clk_cnt == 2'b10) begin
                         shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], mosi};
