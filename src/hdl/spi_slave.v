@@ -35,7 +35,7 @@ module spi_slave (
                                                        // send the data back
     input  wire [`MASTER_FRAME_WIDTH-1:0] i_slv_frame, // input data frame- created outside
                                                        // transmitting LED data back
-    output wire                           miso,
+    output reg                            miso,
     output reg  [`CMD_BITS-1:0]           o_cmd,
     output reg  [`ADDR_BITS-1:0]          o_addr,
     output reg  [`PAYLOAD_BITS-1:0]       o_payload
@@ -74,7 +74,7 @@ module spi_slave (
     wire sclk_falling = ~sclk_sync & sclk_prev; // detect sclk falling edge
 
     // Read process: triggered by cs active-low and sclk
-    @always (posedge sysclk) begin
+    always @(posedge sysclk) begin
         if (cs == `CS_ASSERT) begin
             case (curr_state)
                 IDLE   : begin
@@ -145,7 +145,7 @@ module spi_slave (
             slv_clk_cnt  <= 2'b0;
             o_cmd        <= `CMD_NOP;
             o_addr       <= `ADDR_NONE;
-            o_payload    <=  `PAYLOAD_NONE;
+            o_payload    <= `PAYLOAD_NONE;
             curr_state   <= IDLE;
         end
 
