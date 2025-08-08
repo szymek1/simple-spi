@@ -27,14 +27,18 @@
 
 
 module spi_slave (
-    input                               sysclk,
-    input  wire                         sclk,
-    input  wire                         cs,
-    input  wire                         mosi,
-    output wire                         miso,
-    output reg  [`CMD_BITS-1:0]         o_cmd,
-    output reg  [`ADDR_BITS-1:0]        o_addr,
-    output reg  [`PAYLOAD_BITS-1:0]     o_payload
+    input                                 sysclk,
+    input  wire                           sclk,
+    input  wire                           cs,
+    input  wire                           mosi,
+    input  wire                           tx_enb,  // acitve high to indicate that slave can 
+                                                   // send the data back
+    input  wire [`MASTER_FRAME_WIDTH-1:0] i_frame, // input data frame- created outside
+                                                   // transmitting LED data back
+    output wire                           miso,
+    output reg  [`CMD_BITS-1:0]           o_cmd,
+    output reg  [`ADDR_BITS-1:0]          o_addr,
+    output reg  [`PAYLOAD_BITS-1:0]       o_payload
 );
 
     // SPI Slave FSM
@@ -53,16 +57,21 @@ module spi_slave (
     reg [1:0]                     slv_clk_cnt  = 2'b0; // counter of slvae-clock cycles until the middle of
                                                        // the master-clock is acheived                
 
-    // sclk rising edge detector
+    // Slave transmitter
+    reg [4:0]                     bit_tx_cnt   = 0;
+    reg [`MASTER_FRAME_WIDTH-1:0] shift_reg_tx = 0;
+
+    // sclk rising/falling edge detectors
     reg sclk_prev;
     reg sclk_sync;
 
     always @(posedge sysclk) begin
         sclk_prev <= sclk_sync;
-        sclk_sync <= sclk;                     // synchronize SCLK to 125 MHz domain
+        sclk_sync <= sclk;                      // synchronize SCLK to 125 MHz domain
     end
 
-    wire sclk_rising = sclk_sync & ~sclk_prev; // detect sclk rising edge
+    wire sclk_rising  = sclk_sync & ~sclk_prev; // detect sclk rising edge
+    wire sclk_falling = ~sclk_sync & sclk_prev; // detect sclk falling edge
 
     // Read process: triggered by cs active-low and sclk
     @always (posedge sysclk) begin
@@ -140,6 +149,22 @@ module spi_slave (
             curr_state   <= IDLE;
         end
 
+    end
+
+    // Write process: triggered on the falling edge of sclk
+    always @(posedge sysclk) begin
+        shift_reg_tx <= (tx_enb == 1'b1) ? i_frame : 0;
+    end
+
+    always @(posedge sysclk) begin
+        if (sclk_falling && tx_enb == 1'b1 && cs == `CS_ASSERT && bit_tx_cnt < `MASTER_FRAME_WIDTH) begin
+            miso         <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
+            shift_reg_tx <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
+            bit_tx_cnt   <= bit_tx_cnt + 1'b1;
+        end else if (cs == `CS_DEASSERT || bit_tx_cnt == `MASTER_FRAME_WIDTH) begin
+            miso         <= 1'b0;
+            shift_reg_tx <= 0;
+        end
     end
 
 
