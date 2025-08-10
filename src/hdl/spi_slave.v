@@ -82,7 +82,21 @@ module spi_slave (
 
     // Read process: triggered by cs active-low and sclk
     always @(posedge sysclk) begin
-        if (cs == `CS_ASSERT) begin
+        if (cs == `CS_DEASSERT && curr_state != READ) begin
+            rx_dv        <= 1'b0;
+            bit_rx_cnt   <= 0;
+            shift_reg_rx <= 0;
+            slv_clk_cnt  <= 2'b0;
+            o_cmd        <= `CMD_NOP;
+            o_addr       <= `ADDR_NONE;
+            o_payload    <= `PAYLOAD_NONE;
+            curr_state   <= IDLE;
+            o_shift_reg_debug <= shift_reg_rx;
+            o_serial_debug    <= mosi;
+        end else if (cs == `CS_DEASSERT && curr_state == READ) begin
+            curr_state <= READ; // tried to prevent FSM from resetting while finishing trnasaction
+                                // but it doesn't work
+        end else begin
             o_debug_stage  <= curr_state;
             o_bit_rx_cnt_debug <= bit_rx_cnt;
             case (curr_state)
@@ -113,9 +127,9 @@ module spi_slave (
                     rx_dv           <= 1'b0;
                     if (sclk_rising && bit_rx_cnt < `CMD_BITS) begin
                         slv_clk_cnt <= slv_clk_cnt + 1;
-                    end else if (sclk_sync && slv_clk_cnt < 2'b11 && bit_rx_cnt < `CMD_BITS) begin
+                    end else if (sclk_sync && slv_clk_cnt < `SLV_WAIT_CLK_C && bit_rx_cnt < `CMD_BITS) begin
                         slv_clk_cnt <= slv_clk_cnt + 1;
-                    end else if (sclk_sync && slv_clk_cnt == 2'b11 && bit_rx_cnt < `CMD_BITS) begin
+                    end else if (sclk_sync && slv_clk_cnt == `SLV_WAIT_CLK_C && bit_rx_cnt < `CMD_BITS) begin
                         shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], mosi};
                         bit_rx_cnt <= bit_rx_cnt + 1;
                         slv_clk_cnt <= 0;
@@ -130,9 +144,9 @@ module spi_slave (
                     rx_dv           <= 1'b0;
                     if (sclk_rising && bit_rx_cnt < `ADDR_BITS) begin
                         slv_clk_cnt <= slv_clk_cnt + 1;
-                    end else if (sclk_sync && slv_clk_cnt < 2'b11 && bit_rx_cnt < `ADDR_BITS) begin
+                    end else if (sclk_sync && slv_clk_cnt < `SLV_WAIT_CLK_C && bit_rx_cnt < `ADDR_BITS) begin
                         slv_clk_cnt <= slv_clk_cnt + 1;
-                    end else if (sclk_sync && slv_clk_cnt == 2'b11 && bit_rx_cnt < `ADDR_BITS) begin
+                    end else if (sclk_sync && slv_clk_cnt == `SLV_WAIT_CLK_C && bit_rx_cnt < `ADDR_BITS) begin
                         shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], mosi};
                         bit_rx_cnt <= bit_rx_cnt + 1;
                         slv_clk_cnt <= 0;
@@ -147,9 +161,9 @@ module spi_slave (
                     rx_dv           <= 1'b0;
                     if (sclk_rising && bit_rx_cnt < `PAYLOAD_BITS) begin
                         slv_clk_cnt <= slv_clk_cnt + 1;
-                    end else if (sclk_sync && slv_clk_cnt < 2'b11 && bit_rx_cnt < `PAYLOAD_BITS) begin
+                    end else if (sclk_sync && slv_clk_cnt < `SLV_WAIT_CLK_C && bit_rx_cnt < `PAYLOAD_BITS) begin
                         slv_clk_cnt <= slv_clk_cnt + 1;
-                    end else if (sclk_sync && slv_clk_cnt == 2'b11 && bit_rx_cnt < `PAYLOAD_BITS) begin
+                    end else if (sclk_sync && slv_clk_cnt == `SLV_WAIT_CLK_C && bit_rx_cnt < `PAYLOAD_BITS) begin
                         shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], mosi};
                         bit_rx_cnt <= bit_rx_cnt + 1;
                         slv_clk_cnt <= 0;
@@ -169,21 +183,9 @@ module spi_slave (
                     curr_state <= IDLE;
                     o_shift_reg_debug <= shift_reg_rx;
                     o_serial_debug    <= mosi;
-
                 end
                 default: curr_state <= IDLE;
             endcase
-        end else begin
-            rx_dv        <= 1'b0;
-            bit_rx_cnt   <= 0;
-            shift_reg_rx <= 0;
-            slv_clk_cnt  <= 2'b0;
-            o_cmd        <= `CMD_NOP;
-            o_addr       <= `ADDR_NONE;
-            o_payload    <= `PAYLOAD_NONE;
-            curr_state   <= IDLE;
-            o_shift_reg_debug <= shift_reg_rx;
-            o_serial_debug    <= mosi;
         end
 
     end

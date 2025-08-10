@@ -31,6 +31,10 @@
 `define ADDR_BITS            8 // first 4 bits matter
 `define PAYLOAD_BITS         8 // first 7 bits matter | corresponds to payload of both master and slave
 
+// SPI slave
+`define SLV_WAIT_CLK_C       3 // number of SPI slave clock ycles to wait when the master clock is already
+                               // before sampling mosi bit- aded to avoid metastability
+
 // CS
 `define CS_ASSERT            1'b0
 `define CS_DEASSERT          1'b1
