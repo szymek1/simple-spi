@@ -101,7 +101,7 @@ module spi_master_mock_tb (
         #(`SLAVE_CLK_NS);
         for (i = 0; i < `CMD_BITS; i = i + 1) begin
             @(negedge sclk) begin
-                #(4 * `SLAVE_CLK_NS);
+                #20;
                 rx_cmd_bits[`CMD_BITS - 1 - i] = mosi;
             end
         end
@@ -115,7 +115,7 @@ module spi_master_mock_tb (
         #(`SLAVE_CLK_NS);
         for (i = 0; i < `ADDR_BITS; i = i + 1) begin
             @(negedge sclk) begin
-                #(4 * `SLAVE_CLK_NS);
+                #20;
                 rx_addr_bits[`ADDR_BITS - 1 - i] = mosi;
             end
         end
@@ -129,7 +129,7 @@ module spi_master_mock_tb (
         #(`SLAVE_CLK_NS);
         for (i = 0; i < `PAYLOAD_BITS; i = i + 1) begin
             @(negedge sclk) begin
-                #(4 * `SLAVE_CLK_NS);
+                #20;
                 rx_payload_bits[`PAYLOAD_BITS - 1 - i] = mosi;
             end
         end
@@ -157,13 +157,12 @@ module spi_master_mock_tb (
         $display("Command bits testting...");
         #(`SLAVE_CLK_NS);
         for (i = 0; i < `CMD_BITS; i = i + 1) begin
-            @(posedge sclk) begin
-                #(2 * `SLAVE_CLK_NS);
-                miso = slave_data_frame[j];
-            end
             @(negedge sclk) begin
-                #(4 * `SLAVE_CLK_NS);
+                #20;
                 rx_cmd_bits[`CMD_BITS - 1 - i] = mosi;
+            end
+            @(posedge sclk) begin
+                miso = slave_data_frame[j];
             end
             j = j - 1;
         end
@@ -176,13 +175,12 @@ module spi_master_mock_tb (
         $display("Address bits testting...");
         #(`SLAVE_CLK_NS);
         for (i = 0; i < `ADDR_BITS; i = i + 1) begin
-            @(posedge sclk) begin
-                #(2 * `SLAVE_CLK_NS);
-                miso = slave_data_frame[j];
-            end
             @(negedge sclk) begin
-                #(4 * `SLAVE_CLK_NS);
+                #20;
                 rx_addr_bits[`ADDR_BITS - 1 - i] = mosi;
+            end
+            @(posedge sclk) begin
+                miso = slave_data_frame[j];
             end
             j = j - 1;
         end
@@ -195,13 +193,12 @@ module spi_master_mock_tb (
         $display("Payload bits testting...");
         #(`SLAVE_CLK_NS);
         for (i = 0; i < `PAYLOAD_BITS; i = i + 1) begin
-            @(posedge sclk) begin
-                #(2 * `SLAVE_CLK_NS);
-                miso = slave_data_frame[j];
-            end
             @(negedge sclk) begin
-                #(4 * `SLAVE_CLK_NS);
+                #20;
                 rx_payload_bits[`PAYLOAD_BITS - 1 - i] = mosi;
+            end
+            @(posedge sclk) begin
+                miso = slave_data_frame[j];
             end
             j = j - 1;
         end

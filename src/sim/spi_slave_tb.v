@@ -48,6 +48,10 @@ module spi_slave_tb (
     wire [`CMD_BITS-1:0]            o_cmd;
     wire [`ADDR_BITS-1:0]           o_addr;
     wire [`PAYLOAD_BITS-1:0]        o_payload;
+    wire [`MASTER_FRAME_WIDTH-1:0]  o_shift_reg_debug;
+    wire                            o_serial_debug;
+    wire [3:0]                      o_debug_stage;
+    wire [3:0]                      o_bit_rx_cnt_debug;
 
     // Utils: used to instantiate master i_frame
     reg  [`CMD_BITS-1:0]            mock_master_cmd_bits;
@@ -79,8 +83,16 @@ module spi_slave_tb (
         .miso(miso),
         .o_cmd(o_cmd),
         .o_addr(o_addr),
-        .o_payload(o_payload)
+        .o_payload(o_payload),
+        .o_shift_reg_debug(o_shift_reg_debug),
+        .o_serial_debug(o_serial_debug),
+        .o_bit_rx_cnt_debug(o_bit_rx_cnt_debug),
+        .o_debug_stage(o_debug_stage)
     );
+
+    task debug_display;
+        $display("DEBUG-- T: %t stage: %b mosi: %b shift reg: %b", $time, o_debug_stage, o_serial_debug, o_shift_reg_debug);
+    endtask
 
     initial begin
         clk = 0;
@@ -90,6 +102,7 @@ module spi_slave_tb (
     integer i;
     initial begin
         $dumpfile("spi_slave_tb_waveforms.vcd");
+        /*
         $dumpvars(0, spi_slave_tb.clk,
                      spi_slave_tb.sclk,
                      spi_slave_tb.cs,
@@ -97,8 +110,19 @@ module spi_slave_tb (
                      spi_slave_tb.mosi,
                      spi_slave_tb.o_cmd,
                      spi_slave_tb.o_addr,
-                     spi_slave_tb.o_payload);
-
+                     spi_slave_tb.o_payload,
+                     spi_slave_tb.o_serial_debug,
+                     spi_slave_tb.o_debug_stage);
+        */
+        $dumpvars(0, spi_slave_tb.clk,
+                     spi_slave_tb.sclk,
+                     spi_slave_tb.cs,
+                     spi_slave_tb.mosi,
+                     spi_slave_tb.o_shift_reg_debug,
+                     spi_slave_tb.o_serial_debug,
+                     spi_slave_tb.o_bit_rx_cnt_debug,
+                     spi_slave_tb.o_debug_stage);
+        
         // Initial conditions
         tx_enb     = 1'b0;
         slv_tx_enb = 1'b0;
@@ -107,17 +131,23 @@ module spi_slave_tb (
         // Test 1: master transmission only (set LED 2 to 10% brightness)
         mock_master_cmd_bits     = 8'b10000000;
         mock_master_addr_bits    = 8'b10100000;
-        mock_master_payload_bits = 8'b11010000;
+        mock_master_payload_bits = 8'b11010001;
         i_frame                  = {mock_master_cmd_bits, 
                                     mock_master_addr_bits, 
                                     mock_master_payload_bits};
         tx_enb                   = 1'b1;
 
         $display("Master sending...");
+        /*
+        At the end the final outputs are the NOPs for respective
+        elements: cmd, addr, data. 
+        These loops also seem to be rushing. A different method should govern
+        how these proceed.
+        */
+
+        // Wait for transaction completion
         #(`SLAVE_CLK_NS);
-        for (i = 0; i < `MASTER_FRAME_WIDTH; i = i + 1) begin
-            #(`MASTER_CLK_NS);
-        end
+        @(posedge cs); // CS deasserts in DONE
         #(`SLAVE_CLK_NS);
         if (o_cmd == mock_master_cmd_bits) begin
             $display("Test 1.1: PASS- command bits received correctly");

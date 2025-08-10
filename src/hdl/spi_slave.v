@@ -38,7 +38,11 @@ module spi_slave (
     output reg                            miso,
     output reg  [`CMD_BITS-1:0]           o_cmd,
     output reg  [`ADDR_BITS-1:0]          o_addr,
-    output reg  [`PAYLOAD_BITS-1:0]       o_payload
+    output reg  [`PAYLOAD_BITS-1:0]       o_payload,
+    output reg  [`MASTER_FRAME_WIDTH-1:0] o_shift_reg_debug,
+    output reg                            o_serial_debug,
+    output reg  [3:0]                     o_bit_rx_cnt_debug,
+    output reg  [3:0]                     o_debug_stage
 );
 
     // SPI Slave FSM
@@ -52,7 +56,7 @@ module spi_slave (
     // Slave receiver
     reg                           rx_dv        = 1'b0; // high active when entire data frame is received
     reg [2:0]                     curr_state;
-    reg [2:0]                     bit_rx_cnt   = 0;    // counts received bits to later on set high rx_dv
+    reg [3:0]                     bit_rx_cnt   = 0;    // counts received bits to later on set high rx_dv
     reg [`MASTER_FRAME_WIDTH-1:0] shift_reg_rx = 0;    // received bits are saved in the shift register
     reg [1:0]                     slv_clk_cnt  = 2'b0; // counter of slvae-clock cycles until the middle of
                                                        // the master-clock is acheived                
@@ -76,6 +80,8 @@ module spi_slave (
     // Read process: triggered by cs active-low and sclk
     always @(posedge sysclk) begin
         if (cs == `CS_ASSERT) begin
+            o_debug_stage  <= curr_state;
+            o_bit_rx_cnt_debug <= bit_rx_cnt;
             case (curr_state)
                 IDLE   : begin
                     rx_dv        <= 1'b0;
@@ -84,9 +90,12 @@ module spi_slave (
                     slv_clk_cnt  <= 2'b0;
                     curr_state   <= COMMAND; // as cs is already asserted next slave-clk cycle we can
                                              // begin reading data bits
+                    o_shift_reg_debug <= shift_reg_rx;
+                    o_serial_debug    <= 1'bx;
                 end
                 COMMAND: begin
                     rx_dv           <= 1'b0;
+                    /*
                     if (sclk_rising && bit_rx_cnt < `CMD_BITS && slv_clk_cnt < 2'b10) begin
                         // we are on the rising endge and now we will begin to count until the middle
                         // of the rising part of the master-clock cycle for a stable data
@@ -101,9 +110,32 @@ module spi_slave (
                         bit_rx_cnt   <= 0;
                         curr_state   <= ADDRESS;
                     end
+                    */
+                    /*
+                    if (sclk_rising && bit_rx_cnt < `CMD_BITS) begin
+                        shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], mosi};
+                        bit_rx_cnt   <= bit_rx_cnt + 1'b1;
+                    end else if (bit_rx_cnt == `CMD_BITS) begin
+                        bit_rx_cnt   <= 0;
+                        curr_state   <= ADDRESS;
+                    end
+                    */
+                    if (sclk_rising && bit_rx_cnt < `CMD_BITS) begin
+                        slv_clk_cnt <= 1;
+                    end else if (sclk_sync && slv_clk_cnt == 1 && bit_rx_cnt < `CMD_BITS) begin
+                        shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], mosi};
+                        bit_rx_cnt <= bit_rx_cnt + 1;
+                        slv_clk_cnt <= 0;
+                        o_shift_reg_debug <= shift_reg_rx;
+                        o_serial_debug    <= mosi;
+                    end else if (bit_rx_cnt == `CMD_BITS) begin
+                        bit_rx_cnt <= 0;
+                        curr_state <= ADDRESS;
+                    end
                 end
                 ADDRESS: begin
                     rx_dv           <= 1'b0;
+                    /*
                     if (sclk_rising && bit_rx_cnt < `ADDR_BITS && slv_clk_cnt < 2'b10) begin
                         slv_clk_cnt <= slv_clk_cnt + 1'b1;
                     end else if (sclk_sync && bit_rx_cnt < `ADDR_BITS && slv_clk_cnt == 2'b10) begin
@@ -114,9 +146,32 @@ module spi_slave (
                         bit_rx_cnt   <= 0;
                         curr_state   <= READ;
                     end
+                    */
+                    /*
+                    if (sclk_rising && bit_rx_cnt < `ADDR_BITS) begin
+                        shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], mosi};
+                        bit_rx_cnt   <= bit_rx_cnt + 1'b1;
+                    end else if (bit_rx_cnt == `ADDR_BITS) begin
+                        bit_rx_cnt   <= 0;
+                        curr_state   <= READ;
+                    end
+                    */
+                    if (sclk_rising && bit_rx_cnt < `ADDR_BITS) begin
+                        slv_clk_cnt <= 1;
+                    end else if (sclk_sync && slv_clk_cnt == 1 && bit_rx_cnt < `ADDR_BITS) begin
+                        shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], mosi};
+                        bit_rx_cnt <= bit_rx_cnt + 1;
+                        slv_clk_cnt <= 0;
+                        o_shift_reg_debug <= shift_reg_rx;
+                        o_serial_debug    <= mosi;
+                    end else if (bit_rx_cnt == `ADDR_BITS) begin
+                        bit_rx_cnt <= 0;
+                        curr_state <= READ;
+                    end
                 end
                 READ  : begin
                     rx_dv           <= 1'b0;
+                    /*
                     if (sclk_rising && bit_rx_cnt < `PAYLOAD_BITS && slv_clk_cnt < 2'b10) begin
                         slv_clk_cnt <= slv_clk_cnt + 1'b1;
                     end else if (sclk_sync && bit_rx_cnt < `PAYLOAD_BITS && slv_clk_cnt == 2'b10) begin
@@ -127,6 +182,29 @@ module spi_slave (
                         bit_rx_cnt   <= 0;
                         curr_state   <= DONE;
                     end
+                    */
+                    /*
+                    if (sclk_rising && bit_rx_cnt < `PAYLOAD_BITS) begin
+                        shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], mosi};
+                        bit_rx_cnt   <= bit_rx_cnt + 1'b1;
+                    end else if (bit_rx_cnt == `PAYLOAD_BITS) begin
+                        bit_rx_cnt   <= 0;
+                        curr_state   <= DONE;
+                    end
+                    */
+                    if (sclk_rising && bit_rx_cnt < `PAYLOAD_BITS) begin
+                        slv_clk_cnt <= 1;
+                    end else if (sclk_sync && slv_clk_cnt == 1 && bit_rx_cnt < `PAYLOAD_BITS) begin
+                        shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], mosi};
+                        bit_rx_cnt <= bit_rx_cnt + 1;
+                        slv_clk_cnt <= 0;
+                        o_shift_reg_debug <= shift_reg_rx;
+                        o_serial_debug    <= mosi;
+                    end else if (bit_rx_cnt == `PAYLOAD_BITS) begin
+                        shift_reg_rx <= shift_reg_rx << 1'b1;
+                        bit_rx_cnt <= 0;
+                        curr_state <= DONE;
+                    end
                 end
                 DONE   : begin
                     rx_dv      <= 1'b1; // single clock cycle pulse
@@ -134,6 +212,8 @@ module spi_slave (
                     o_addr     <= shift_reg_rx[15:8];
                     o_payload  <= shift_reg_rx[7:0];
                     curr_state <= IDLE;
+                    o_shift_reg_debug <= shift_reg_rx;
+                    o_serial_debug    <= mosi;
 
                 end
                 default: curr_state <= IDLE;
@@ -147,6 +227,8 @@ module spi_slave (
             o_addr       <= `ADDR_NONE;
             o_payload    <= `PAYLOAD_NONE;
             curr_state   <= IDLE;
+            o_shift_reg_debug <= shift_reg_rx;
+            o_serial_debug    <= mosi;
         end
 
     end

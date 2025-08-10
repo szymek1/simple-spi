@@ -55,17 +55,6 @@ module spi_master_mock (
     reg [`MASTER_FRAME_WIDTH-1:0] shift_reg_rx = 0;    // receive shift register
 
     // 26MHz pulse generator
-    /*
-    always @(posedge sysclk) begin
-        if (sclk_cnt == (`CLKS_PER_MASTER_SCLK - 1)) begin
-            sclk_int   <= 1'b1;
-            sclk_cnt   <= 0;
-        end else begin
-            sclk_int   <= 1'b0;
-            sclk_cnt   <= sclk_cnt + 1'b1;
-        end
-    end
-    */
     reg                           sclk_prev;
     always @(posedge sysclk) begin
         sclk_prev      <= sclk_int;
