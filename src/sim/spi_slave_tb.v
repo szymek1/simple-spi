@@ -39,6 +39,9 @@ module spi_slave_tb (
     wire                            sclk;
     wire                            mosi;
     wire                            o_frame;
+    wire [`MASTER_FRAME_WIDTH-1:0]  o_m_shift_reg_debug;
+    wire                            o_m_serial_debug;
+    wire [4:0]                      o_m_bit_rx_cnt_debug;
 
     // Inputs: slave
     reg                             slv_tx_enb;
@@ -52,6 +55,7 @@ module spi_slave_tb (
     wire                            o_serial_debug;
     wire [3:0]                      o_debug_stage;
     wire [3:0]                      o_bit_rx_cnt_debug;
+    wire                            rx_dv;
 
     // Utils: used to instantiate master i_frame
     reg  [`CMD_BITS-1:0]            mock_master_cmd_bits;
@@ -70,7 +74,10 @@ module spi_slave_tb (
         .cs(cs),
         .sclk(sclk),
         .mosi(mosi),
-        .o_frame(o_frame)
+        .o_frame(o_frame),
+        .o_m_shift_reg_debug(o_m_shift_reg_debug),
+        .o_m_serial_debug(o_m_serial_debug),
+        .o_m_bit_rx_cnt_debug(o_m_bit_rx_cnt_debug)
     );
 
     spi_slave spi_slave_uut (
@@ -84,6 +91,7 @@ module spi_slave_tb (
         .o_cmd(o_cmd),
         .o_addr(o_addr),
         .o_payload(o_payload),
+        .rx_dv(rx_dv),
         .o_shift_reg_debug(o_shift_reg_debug),
         .o_serial_debug(o_serial_debug),
         .o_bit_rx_cnt_debug(o_bit_rx_cnt_debug),
@@ -103,6 +111,7 @@ module spi_slave_tb (
     initial begin
         $dumpfile("spi_slave_tb_waveforms.vcd");
         /*
+        // No debug wires enabled
         $dumpvars(0, spi_slave_tb.clk,
                      spi_slave_tb.sclk,
                      spi_slave_tb.cs,
@@ -114,41 +123,51 @@ module spi_slave_tb (
                      spi_slave_tb.o_serial_debug,
                      spi_slave_tb.o_debug_stage);
         */
+        /*
+        // Debug wires enabled for SPI slave
         $dumpvars(0, spi_slave_tb.clk,
                      spi_slave_tb.sclk,
                      spi_slave_tb.cs,
                      spi_slave_tb.mosi,
+                     spi_slave_tb.miso,
                      spi_slave_tb.o_shift_reg_debug,
                      spi_slave_tb.o_serial_debug,
                      spi_slave_tb.o_bit_rx_cnt_debug,
-                     spi_slave_tb.o_debug_stage);
-        
+                     spi_slave_tb.o_debug_stage,
+                     spi_slave_tb.rx_dv,
+                     spi_slave_tb.o_cmd,
+                     spi_slave_tb.o_addr,
+                     spi_slave_tb.o_payload);
+        */
+        // Debug wires enabled for SPI master
+        $dumpvars(0, spi_slave_tb.clk,
+                     spi_slave_tb.sclk,
+                     spi_slave_tb.cs,
+                     spi_slave_tb.mosi,
+                     spi_slave_tb.miso,
+                     spi_slave_tb.o_m_shift_reg_debug,
+                     spi_slave_tb.o_m_serial_debug,
+                     spi_slave_tb.o_m_bit_rx_cnt_debug);
         // Initial conditions
         tx_enb     = 1'b0;
         slv_tx_enb = 1'b0;
         #(3 * `SLAVE_CLK_NS);
-
-        // Test 1: master transmission only (set LED 2 to 10% brightness)
-        mock_master_cmd_bits     = 8'b10000000;
-        mock_master_addr_bits    = 8'b10100000;
+        /*
+        // Test 1: master transmission only
+        mock_master_cmd_bits     = 8'b10000001;
+        mock_master_addr_bits    = 8'b10100001;
         mock_master_payload_bits = 8'b11010001;
         i_frame                  = {mock_master_cmd_bits, 
                                     mock_master_addr_bits, 
                                     mock_master_payload_bits};
         tx_enb                   = 1'b1;
 
-        $display("Master sending...");
-        /*
-        At the end the final outputs are the NOPs for respective
-        elements: cmd, addr, data. 
-        These loops also seem to be rushing. A different method should govern
-        how these proceed.
-        */
-
+        $display("Test 1: Master sending...");
         // Wait for transaction completion
         #(`SLAVE_CLK_NS);
         @(posedge cs); // CS deasserts in DONE
-        #(`SLAVE_CLK_NS);
+        #(2.5*`SLAVE_CLK_NS); // in real life the condition should be rx_dv high in the middle 
+                              // of the high period
         if (o_cmd == mock_master_cmd_bits) begin
             $display("Test 1.1: PASS- command bits received correctly");
         end else begin
@@ -163,6 +182,89 @@ module spi_slave_tb (
             $display("Test 1.3: PASS- payload bits received correctly");
         end else begin
             $display("Test 1.1: FAIL- got: %b, expected: %b data", o_payload, mock_master_payload_bits);
+        end
+
+        tx_enb = 1'b0;
+        #(20 * `SLAVE_CLK_NS);
+        
+        // Test 2: master transmission only (set LED 2 to 10% brightness)
+        mock_master_cmd_bits     = `CMD_LED_SET;
+        mock_master_addr_bits    = 8'h2;
+        mock_master_payload_bits = 8'hA;
+        i_frame                  = {mock_master_cmd_bits, 
+                                    mock_master_addr_bits, 
+                                    mock_master_payload_bits};
+        tx_enb                   = 1'b1;
+
+        $display("Test 2: Master sending...");
+        // Wait for transaction completion
+        #(`SLAVE_CLK_NS);
+        @(posedge cs); // CS deasserts in DONE
+        #(2.5*`SLAVE_CLK_NS); // in real life the condition should be rx_dv high in the middle 
+                              // of the high period
+        if (o_cmd == mock_master_cmd_bits) begin
+            $display("Test 2.1: PASS- command bits received correctly");
+        end else begin
+            $display("Test 2.1: FAIL- got: %b, expected: %b cmd", o_cmd, mock_master_cmd_bits);
+        end
+        if (o_addr == mock_master_addr_bits) begin
+            $display("Test 2.2: PASS- address bits received correctly");
+        end else begin
+            $display("Test 2.2: FAIL- got: %b, expected: %b addr", o_addr, mock_master_addr_bits);
+        end
+        if (o_payload == mock_master_payload_bits) begin
+            $display("Test 2.3: PASS- payload bits received correctly");
+        end else begin
+            $display("Test 2.1: FAIL- got: %b, expected: %b data", o_payload, mock_master_payload_bits);
+        end
+
+        tx_enb = 1'b0;
+        #(20 * `SLAVE_CLK_NS);
+        */
+        // Test 3: master and slave parallel transmission
+        mock_master_cmd_bits     = `CMD_LED_SET;
+        mock_master_addr_bits    = 8'h9;
+        mock_master_payload_bits = 8'h5;
+
+        mock_slave_cmd_bits      = 8'b0;
+        mock_slave_addr_bits     = 8'b0;
+        mock_slave_payload_bits  = 8'hA;
+
+        i_frame                  = {mock_master_cmd_bits, 
+                                    mock_master_addr_bits, 
+                                    mock_master_payload_bits};
+        i_slv_frame              = {mock_slave_cmd_bits, 
+                                    mock_slave_addr_bits, 
+                                    mock_slave_payload_bits};
+        slv_tx_enb               = 1'b1;
+        tx_enb                   = 1'b1;
+
+        $display("Test 3: Master and slave sending...");
+        // Wait for transaction completion
+        #(`SLAVE_CLK_NS);
+        @(posedge cs); // CS deasserts in DONE
+        #(2.5*`SLAVE_CLK_NS); // in real life the condition should be rx_dv high in the middle 
+                              // of the high period
+        if (o_cmd == mock_master_cmd_bits) begin
+            $display("Test 3.1.1: PASS- command bits received correctly");
+        end else begin
+            $display("Test 3.1.1: FAIL- got: %b, expected: %b cmd", o_cmd, mock_master_cmd_bits);
+        end
+        if (o_addr == mock_master_addr_bits) begin
+            $display("Test 3.1.2: PASS- address bits received correctly");
+        end else begin
+            $display("Test 3.1.2: FAIL- got: %b, expected: %b addr", o_addr, mock_master_addr_bits);
+        end
+        if (o_payload == mock_master_payload_bits) begin
+            $display("Test 3.1.3: PASS- payload bits received correctly");
+        end else begin
+            $display("Test 3.1.3: FAIL- got: %b, expected: %b data", o_payload, mock_master_payload_bits);
+        end
+        $display("Evaluating received slave data frame...");
+        if (o_frame == mock_slave_payload_bits[7:1]) begin
+            $display("Test 3.2: miso received correctly: %b", o_frame);
+        end else begin
+            $display("Test 3.2: miso received incorrectly: %b \n expected: %b", o_frame, mock_slave_payload_bits[7:1]);
         end
 
         #(3 * `SLAVE_CLK_NS);
