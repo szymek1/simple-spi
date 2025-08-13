@@ -32,7 +32,10 @@ module spi_master_mock (
     output reg                            cs,          // chip select (active low)
     output wire                           sclk,        // clock signal issued to slave
     output reg                            mosi,        // serial master output
-    output wire [`BRIGHTNESS_WIDTH-1:0]   o_frame      // entire response
+    output wire [`BRIGHTNESS_WIDTH-1:0]   o_frame,     // entire response
+    output reg  [`MASTER_FRAME_WIDTH-1:0] o_m_shift_reg_debug,
+    output reg                            o_m_serial_debug,
+    output reg  [4:0]                     o_m_bit_rx_cnt_debug
 );
 
     // SPI Master FSM
@@ -46,25 +49,29 @@ module spi_master_mock (
     // Master transmitter + sclk generation
     reg [2:0]                     curr_state;
     reg [4:0]                     bit_frame_cnt;       // indexing what is the current bit from data frame to send
-    reg                           sclk_int;            // internal output master clock
+    reg                           sclk_int     = 1'b0; // internal output master clock
     reg [2:0]                     sclk_cnt     = 0;    // count cycles of 125Mhz frequency clock before issuing sclk pulse
     reg [`MASTER_FRAME_WIDTH-1:0] shift_reg_tx;        // transmit shift register
 
     // Master receiver
-    reg [2:0]                     bit_rx_cnt   = 0;
+    reg [4:0]                     bit_rx_cnt   = 0;
     reg [`MASTER_FRAME_WIDTH-1:0] shift_reg_rx = 0;    // receive shift register
 
     // 26MHz pulse generator
+    reg                           sclk_prev;
     always @(posedge sysclk) begin
+        sclk_prev      <= sclk_int;
         if (sclk_cnt == (`CLKS_PER_MASTER_SCLK - 1)) begin
-            sclk_int   <= 1'b1;
+            sclk_int   <= ~sclk_int;
             sclk_cnt   <= 0;
         end else begin
-            sclk_int   <= 1'b0;
+            sclk_int   <= sclk_int;
             sclk_cnt   <= sclk_cnt + 1'b1;
         end
     end
-    assign sclk     = sclk_int;
+    wire   sclk_falling = sclk_prev  & ~sclk_int;
+    wire   sclk_rising  = ~sclk_prev & sclk_int;
+    assign sclk         = sclk_int;
 
     // Write process: triggered on the falling edge sclk_int
     always @(posedge sysclk) begin 
@@ -72,8 +79,9 @@ module spi_master_mock (
             IDLE   : begin
                 cs               <= `CS_DEASSERT;
                 bit_frame_cnt    <= 0;
-                mosi             <= 1'bx;
+                mosi             <= 1'b0;
                 shift_reg_tx     <= 0;
+                shift_reg_tx <= i_frame;
                 if (tx_enb == 1'b1) begin
                     shift_reg_tx <= i_frame;
                     cs           <= `CS_ASSERT;
@@ -82,7 +90,7 @@ module spi_master_mock (
             end
             COMMAND: begin
                 cs                <= `CS_ASSERT;
-                if (sclk_int && bit_frame_cnt <= (`CMD_BITS - 1)) begin
+                if (sclk_falling && bit_frame_cnt < `CMD_BITS) begin
                     mosi          <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
                     shift_reg_tx  <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
                     bit_frame_cnt <= bit_frame_cnt + 1'b1;
@@ -93,7 +101,7 @@ module spi_master_mock (
             end
             ADDRESS: begin
                 cs                <= `CS_ASSERT;
-                if (sclk_int && bit_frame_cnt <= (`ADDR_BITS - 1)) begin
+                if (sclk_falling && bit_frame_cnt < `ADDR_BITS) begin
                     mosi          <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
                     shift_reg_tx  <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
                     bit_frame_cnt <= bit_frame_cnt + 1'b1;
@@ -104,18 +112,22 @@ module spi_master_mock (
             end
             WRITE  : begin
                 cs                <= `CS_ASSERT;
-                if (sclk_int && bit_frame_cnt <= (`PAYLOAD_BITS - 1)) begin
+                if (sclk_falling && bit_frame_cnt < `PAYLOAD_BITS) begin
                     mosi          <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
                     shift_reg_tx  <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
                     bit_frame_cnt <= bit_frame_cnt + 1'b1;
                 end else if (bit_frame_cnt == `PAYLOAD_BITS) begin
-                    bit_frame_cnt <= 0;
-                    curr_state    <= DONE;
+                    // in order to make sure that an entire transaction
+                    // has completed SPI master has to wait an extra sclk cycle
+                    if (sclk_rising) begin
+                        bit_frame_cnt <= 0;
+                        curr_state    <= DONE;
+                    end
                 end
             end
             DONE   : begin
                 cs            <= `CS_DEASSERT;
-                mosi          <= 1'bx;
+                // mosi          <= 1'b0; // latching on the very last bit
                 bit_frame_cnt <= 0;
                 shift_reg_tx  <= 0;
                 curr_state    <= IDLE;
@@ -126,12 +138,20 @@ module spi_master_mock (
 
     // Read process: triggered on the rising edge sclk_int
     always @(posedge sysclk) begin
-        if (sclk_cnt == (`CLKS_PER_MASTER_SCLK - 1) && !sclk_int && curr_state != IDLE && curr_state != DONE) begin
+        if (cs == `CS_DEASSERT) begin
+            shift_reg_rx <= 0;
+            bit_rx_cnt   <= 0;
+        end else begin
+        if (sclk_rising) begin //  && curr_state != IDLE && curr_state != DONE
+            o_m_serial_debug <= miso;
+            o_m_shift_reg_debug <= shift_reg_tx;
+            o_m_bit_rx_cnt_debug <= bit_rx_cnt;
             shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], miso};
             bit_rx_cnt   <= bit_rx_cnt + 1;
             if (bit_rx_cnt == `MASTER_FRAME_WIDTH - 1) begin
                 bit_rx_cnt <= 0;
             end
+        end
         end
     end
     assign o_frame = shift_reg_rx[6:0];

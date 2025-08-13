@@ -5,12 +5,24 @@
 `define BRIGHTNESS_WIDTH     7    // brightness level can vary: 0%-100%; 7-bit number required to store the input value
 `define LED_MIN_BRIGHTNESS   0    // minimal level of brightness in %- min. duty cycle
 `define LED_MAX_BRIGHTNESS   90   // maximal level of brightness in %- max. duty cycle
+`define LED_ADDR_WIDTH       4    // 13 addressable LEDs with 4-bit long addresses
 
 // SPI
 // SPI data frame
 `define MASTER_FRAME_WIDTH   24   // 24 bits wide master data frame
 `define CLKS_PER_MASTER_SCLK 5    // FPGA has 125Mhz clock but ESP32 SPI Master has 26MHz, this parameter specifies how many 
                                   // 125Mhz frequency clock cycles to wait before issuing 25Mhz pulse
+
+// Master data frame enconding
+// CMD
+`define CMD_LED_SET          8'h1
+`define CMD_LED_READ         8'h2
+`define CMD_NOP              8'h0
+// ADDR
+`define ADDR_NONE            8'hD
+// PAYLOAD
+`define PAYLOAD_NONE         8'h0
+
 
 // SPI Master data frame is 24 bits wide and each section: command, address, payload
 // is equally 8 bits wide, however, when the data for a section isn't encoded with 8 bits
