@@ -45,6 +45,9 @@ FPGA implementation of SPI Master is governed by the FSM which follows the trans
 
 SPI Master FSM
 
+#### SPI SLave- FPGA
+FPGA implementation of SPI Slave is the synthesizeable module governed by FSM similar to the one present for ***SPI Master- FPGA***. 
+
 ### SPI wiring
 The wiring between SPI Master and SPI Slave is represented on the digram below. It makes use of default SPI2 pins of ESP32-S3 and PMOD pins of Xilinx Zybo Z7-20.
 
