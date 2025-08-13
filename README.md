@@ -45,6 +45,14 @@ FPGA implementation of SPI Master is governed by the FSM which follows the trans
 
 SPI Master FSM
 
+### SPI wiring
+The wiring between SPI Master and SPI Slave is represented on the digram below. It makes use of default SPI2 pins of ESP32-S3 and PMOD pins of Xilinx Zybo Z7-20.
+
+![SPI wiring](docs/diagrams/spi_wiring.png)
+
+For PMOD reference check ```src/constraints/Zybo-Z7-Master.xdc```.
+For ESP32-S3 pinout [check here](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitm-1/user_guide.html#related-documents).
+
 ## Hardware
 This project makes use of:
 
