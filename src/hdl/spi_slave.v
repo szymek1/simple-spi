@@ -157,6 +157,16 @@ module spi_slave (
         end
     end
 
+    /*
+    To make it fully SPI compliant when receiver detect CMD_LED_READ and the following address it
+    has to inform spi_top module that instead of trnamsitting 24'b0 (as in case of CMD_LED_SET)
+    now we have to transfer {8'b0, 8'b0, PAYLOAD} which means that the logic below can only work 
+    given we are only having CMD_LED_SET otherwise an interrupt has to happend as o_cmd and o_addr
+    have to be delivered faster so we still have a time to prepare and send the valid payload.
+    assign o_cmd     = (rx_dv == 1'b1 || rx_cmd == `CMD_LED_READ) ? shift_reg_rx[23:16] : `CMD_NOP;
+    assign o_addr    = (rx_dv == 1'b1 || rx_addr < `NUM_LED)      ? shift_reg_rx[15:8]  : `ADDR_NONE;
+    */
+
     // output assignments - data is valid when CS is deasserted (rx_dv high)
     assign rx_dv     = (cs_sync[1] == `CS_DEASSERT) ? 1'b1                : 1'b0;
     assign o_cmd     = (rx_dv == 1'b1)              ? shift_reg_rx[23:16] : `CMD_NOP;
