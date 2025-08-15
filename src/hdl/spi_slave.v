@@ -40,8 +40,8 @@ module spi_slave (
     output wire                            rx_dv,
     output reg   [`MASTER_FRAME_WIDTH-1:0] o_shift_reg_debug,
     output reg                             o_serial_debug,
-    output reg   [3:0]                     o_bit_rx_cnt_debug,
-    output reg   [3:0]                     o_debug_stage
+    output reg   [4:0]                     o_bit_rx_cnt_debug,
+    output reg   [2:0]                     o_debug_stage
 );
 
     // SPI Slave FSM
@@ -87,12 +87,14 @@ module spi_slave (
             first_edge_seen <= 0;
         end
         else begin
+            /*
             // debug outputs
             o_debug_stage      <= curr_state;
             o_bit_rx_cnt_debug <= bit_rx_cnt[3:0];
             o_shift_reg_debug  <= shift_reg_rx;
             o_serial_debug     <= mosi;
-            
+            */
+            o_debug_stage      <= curr_state;
             case (curr_state)
                 IDLE   : begin
                     if (cs_falling) begin
@@ -168,12 +170,19 @@ module spi_slave (
             bit_tx_cnt <= 0;
             shift_reg_tx <= 0;
         end
+        if (cs_falling) begin
+            shift_reg_tx <= i_slv_frame;
+        end
         else if (slv_tx_enb) begin
+            o_bit_rx_cnt_debug <= bit_tx_cnt;
+            o_shift_reg_debug  <= shift_reg_tx;
+            o_serial_debug     <= miso;
             // Load transmit data when enabled
+            /*
             if (bit_tx_cnt == 0 && !sclk_falling) begin
                 shift_reg_tx <= i_slv_frame;
             end
-            
+            */
             // Shift data out on falling edge of SCLK
             if (sclk_falling && bit_tx_cnt < `MASTER_FRAME_WIDTH) begin
                 miso <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];

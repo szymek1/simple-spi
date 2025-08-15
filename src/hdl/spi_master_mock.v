@@ -35,7 +35,8 @@ module spi_master_mock (
     output wire [`BRIGHTNESS_WIDTH-1:0]   o_frame,     // entire response
     output reg  [`MASTER_FRAME_WIDTH-1:0] o_m_shift_reg_debug,
     output reg                            o_m_serial_debug,
-    output reg  [4:0]                     o_m_bit_rx_cnt_debug
+    output reg  [4:0]                     o_m_bit_rx_cnt_debug,
+    output reg  [2:0]                     o_m_stage_debug
 );
 
     // SPI Master FSM
@@ -56,6 +57,7 @@ module spi_master_mock (
     // Master receiver
     reg [4:0]                     bit_rx_cnt   = 0;
     reg [`MASTER_FRAME_WIDTH-1:0] shift_reg_rx = 0;    // receive shift register
+    reg                           rx_dv        = 0;
 
     // 26MHz pulse generator
     reg                           sclk_prev;
@@ -75,17 +77,26 @@ module spi_master_mock (
 
     // Write process: triggered on the falling edge sclk_int
     always @(posedge sysclk) begin 
+        /*
+        o_m_stage_debug      <= curr_state;
+        o_m_serial_debug     <= mosi;
+        o_m_shift_reg_debug  <= shift_reg_tx;
+        o_m_bit_rx_cnt_debug <= bit_frame_cnt;
+        */
         case (curr_state)
             IDLE   : begin
                 cs               <= `CS_DEASSERT;
                 bit_frame_cnt    <= 0;
                 mosi             <= 1'b0;
-                shift_reg_tx     <= 0;
-                shift_reg_tx <= i_frame;
+                // shift_reg_tx     <= 0;
+                // shift_reg_tx <= i_frame;
                 if (tx_enb == 1'b1) begin
                     shift_reg_tx <= i_frame;
                     cs           <= `CS_ASSERT;
                     curr_state   <= COMMAND;
+                end else begin
+                    shift_reg_tx <= 0;
+                    curr_state   <= IDLE;
                 end
             end
             COMMAND: begin
@@ -129,7 +140,7 @@ module spi_master_mock (
                 cs            <= `CS_DEASSERT;
                 // mosi          <= 1'b0; // latching on the very last bit
                 bit_frame_cnt <= 0;
-                shift_reg_tx  <= 0;
+                // shift_reg_tx  <= 0;
                 curr_state    <= IDLE;
             end
             default: curr_state <= IDLE;
@@ -142,18 +153,21 @@ module spi_master_mock (
             shift_reg_rx <= 0;
             bit_rx_cnt   <= 0;
         end else begin
-        if (sclk_rising) begin //  && curr_state != IDLE && curr_state != DONE
-            o_m_serial_debug <= miso;
-            o_m_shift_reg_debug <= shift_reg_tx;
+            o_m_serial_debug     <= miso;
+            o_m_shift_reg_debug  <= shift_reg_rx;
             o_m_bit_rx_cnt_debug <= bit_rx_cnt;
-            shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], miso};
-            bit_rx_cnt   <= bit_rx_cnt + 1;
-            if (bit_rx_cnt == `MASTER_FRAME_WIDTH - 1) begin
-                bit_rx_cnt <= 0;
+
+            rx_dv                <= 1'b0; // transmission ongoing
+            if (sclk_rising) begin //  && curr_state != IDLE && curr_state != DONE
+                shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], miso};
+                bit_rx_cnt   <= bit_rx_cnt + 1;
+                if (bit_rx_cnt == `MASTER_FRAME_WIDTH - 1) begin
+                    bit_rx_cnt <= 0;
+                    rx_dv      <= 1'b1;
+                end
             end
         end
-        end
     end
-    assign o_frame = shift_reg_rx[6:0];
+    assign o_frame = (rx_dv == 1'b1) ? shift_reg_rx[6:0] : 0;
 
 endmodule

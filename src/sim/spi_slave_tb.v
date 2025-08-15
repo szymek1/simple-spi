@@ -38,10 +38,11 @@ module spi_slave_tb (
     wire                            cs;
     wire                            sclk;
     wire                            mosi;
-    wire                            o_frame;
+    wire [`BRIGHTNESS_WIDTH-1:0]    o_frame;
     wire [`MASTER_FRAME_WIDTH-1:0]  o_m_shift_reg_debug;
     wire                            o_m_serial_debug;
     wire [4:0]                      o_m_bit_rx_cnt_debug;
+    wire [2:0]                      o_m_stage_debug;
 
     // Inputs: slave
     reg                             slv_tx_enb;
@@ -53,8 +54,8 @@ module spi_slave_tb (
     wire [`PAYLOAD_BITS-1:0]        o_payload;
     wire [`MASTER_FRAME_WIDTH-1:0]  o_shift_reg_debug;
     wire                            o_serial_debug;
-    wire [3:0]                      o_debug_stage;
-    wire [3:0]                      o_bit_rx_cnt_debug;
+    wire [2:0]                      o_debug_stage;
+    wire [4:0]                      o_bit_rx_cnt_debug;
     wire                            rx_dv;
 
     // Utils: used to instantiate master i_frame
@@ -77,7 +78,8 @@ module spi_slave_tb (
         .o_frame(o_frame),
         .o_m_shift_reg_debug(o_m_shift_reg_debug),
         .o_m_serial_debug(o_m_serial_debug),
-        .o_m_bit_rx_cnt_debug(o_m_bit_rx_cnt_debug)
+        .o_m_bit_rx_cnt_debug(o_m_bit_rx_cnt_debug),
+        .o_m_stage_debug(o_m_stage_debug)
     );
 
     spi_slave spi_slave_uut (
@@ -143,16 +145,24 @@ module spi_slave_tb (
         $dumpvars(0, spi_slave_tb.clk,
                      spi_slave_tb.sclk,
                      spi_slave_tb.cs,
+                     spi_slave_tb.slv_tx_enb,
                      spi_slave_tb.mosi,
                      spi_slave_tb.miso,
+                     spi_slave_tb.i_slv_frame,
+                     spi_slave_tb.o_frame,
                      spi_slave_tb.o_m_shift_reg_debug,
                      spi_slave_tb.o_m_serial_debug,
-                     spi_slave_tb.o_m_bit_rx_cnt_debug);
+                     spi_slave_tb.o_m_bit_rx_cnt_debug,
+                     spi_slave_tb.o_m_stage_debug,
+                     spi_slave_tb.o_shift_reg_debug,
+                     spi_slave_tb.o_serial_debug,
+                     spi_slave_tb.o_bit_rx_cnt_debug,
+                     spi_slave_tb.o_debug_stage);
         // Initial conditions
         tx_enb     = 1'b0;
         slv_tx_enb = 1'b0;
-        #(3 * `SLAVE_CLK_NS);
-        /*
+        // #(3 * `SLAVE_CLK_NS);
+        #(2 * `MASTER_CLK_NS);
         // Test 1: master transmission only
         mock_master_cmd_bits     = 8'b10000001;
         mock_master_addr_bits    = 8'b10100001;
@@ -164,10 +174,10 @@ module spi_slave_tb (
 
         $display("Test 1: Master sending...");
         // Wait for transaction completion
+        #(2 * `SLAVE_CLK_NS);
+        tx_enb = 1'b0;
+        @(posedge rx_dv);
         #(`SLAVE_CLK_NS);
-        @(posedge cs); // CS deasserts in DONE
-        #(2.5*`SLAVE_CLK_NS); // in real life the condition should be rx_dv high in the middle 
-                              // of the high period
         if (o_cmd == mock_master_cmd_bits) begin
             $display("Test 1.1: PASS- command bits received correctly");
         end else begin
@@ -184,9 +194,8 @@ module spi_slave_tb (
             $display("Test 1.1: FAIL- got: %b, expected: %b data", o_payload, mock_master_payload_bits);
         end
 
-        tx_enb = 1'b0;
-        #(20 * `SLAVE_CLK_NS);
-        
+        #(2 * `MASTER_CLK_NS);
+
         // Test 2: master transmission only (set LED 2 to 10% brightness)
         mock_master_cmd_bits     = `CMD_LED_SET;
         mock_master_addr_bits    = 8'h2;
@@ -198,10 +207,10 @@ module spi_slave_tb (
 
         $display("Test 2: Master sending...");
         // Wait for transaction completion
+        #(2 * `SLAVE_CLK_NS);
+        tx_enb = 1'b0;
+        @(posedge rx_dv);
         #(`SLAVE_CLK_NS);
-        @(posedge cs); // CS deasserts in DONE
-        #(2.5*`SLAVE_CLK_NS); // in real life the condition should be rx_dv high in the middle 
-                              // of the high period
         if (o_cmd == mock_master_cmd_bits) begin
             $display("Test 2.1: PASS- command bits received correctly");
         end else begin
@@ -218,9 +227,8 @@ module spi_slave_tb (
             $display("Test 2.1: FAIL- got: %b, expected: %b data", o_payload, mock_master_payload_bits);
         end
 
-        tx_enb = 1'b0;
-        #(20 * `SLAVE_CLK_NS);
-        */
+        #(2 * `MASTER_CLK_NS);
+
         // Test 3: master and slave parallel transmission
         mock_master_cmd_bits     = `CMD_LED_SET;
         mock_master_addr_bits    = 8'h9;
@@ -241,10 +249,10 @@ module spi_slave_tb (
 
         $display("Test 3: Master and slave sending...");
         // Wait for transaction completion
+        #(2 * `SLAVE_CLK_NS);
+        tx_enb = 1'b0;
+        @(posedge rx_dv);
         #(`SLAVE_CLK_NS);
-        @(posedge cs); // CS deasserts in DONE
-        #(2.5*`SLAVE_CLK_NS); // in real life the condition should be rx_dv high in the middle 
-                              // of the high period
         if (o_cmd == mock_master_cmd_bits) begin
             $display("Test 3.1.1: PASS- command bits received correctly");
         end else begin

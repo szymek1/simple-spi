@@ -4,7 +4,7 @@
 //
 // Create Date: 13/08/2025
 // Design Name:
-// Module Name: spi_slave
+// Module Name: spi_top
 // Project Name: simple-spi
 // Target Devices: Zybo Z7-20
 // Tool Versions:
@@ -34,7 +34,7 @@ module spi_top (
     // input  wire  [`MASTER_FRAME_WIDTH-1:0] i_slv_frame, // created internally
     // Outputs
     // PMOD JA output
-    output reg                             miso,
+    output wire                            miso,
     // PMOD JE outputs (LEDs)
     output wire                            led1,
     output wire                            led2,
@@ -46,12 +46,12 @@ module spi_top (
     output wire                            led8
 );
 
-    reg                            slv_tx_enb  = 1'b0;
-    reg [`MASTER_FRAME_WIDTH-1:0]  i_slv_frame = 0;
+    reg                            slv_tx_enb       = 1'b0;
+    reg [`MASTER_FRAME_WIDTH-1:0]  i_slv_frame      = 0;
 
-    reg [`CMD_BITS-1:0]            curr_cmd       = `CMD_NOP;
-    reg [`ADDR_BITS-1:0]           curr_addr      = `ADDR_NONE;
-    reg [`PAYLOAD_BITS-1:0]        curr_payload   = `PAYLOAD_NONE;
+    wire [`CMD_BITS-1:0]           curr_cmd         = `CMD_NOP;
+    wire [`ADDR_BITS-1:0]          curr_addr        = `ADDR_NONE;
+    wire [`PAYLOAD_BITS-1:0]       curr_payload     = `PAYLOAD_NONE;
 
     reg [`CMD_BITS-1:0]            r_curr_cmd       = `CMD_NOP;
     reg [`ADDR_BITS-1:0]           r_curr_addr      = `ADDR_NONE;
@@ -63,7 +63,8 @@ module spi_top (
     integer i;
     initial begin
         for (i = 0; i < `NUM_LEDS; i = i + 1) begin
-            led_brightness[i] = `PAYLOAD_NONE[7:1];  // all LEDs are set to 0% brithgntess
+            led_brightness[i] = 7'b0;  // all LEDs are set to 0% brithgntess
+                                       // how to parametrize it?
         end
     end
 
@@ -103,18 +104,10 @@ module spi_top (
     );
 
     always @(posedge sysclk) begin
-        if (rx_dv == 1'b1 && cs == `CS_ASSERT) begin
+        if (rx_dv == 1'b1 && cs == `CS_DEASSERT) begin
             r_curr_cmd     <= curr_cmd;
             r_curr_addr    <= curr_addr;
             r_curr_payload <= curr_payload;
-        end else if (rx_dv == 1'b0 && cs == `CS_DEASSERT) begin
-            r_curr_cmd     <= r_curr_cmd;
-            r_curr_addr    <= r_curr_addr;
-            r_curr_payload <= r_curr_payload;
-        end else begin
-            r_curr_cmd     <= `CMD_NOP;
-            r_curr_addr    <= `ADDR_NONE;
-            r_curr_payload <= `PAYLOAD_NONE;
         end
     end
 
@@ -123,7 +116,7 @@ module spi_top (
             case (curr_cmd)
                 `CMD_LED_SET  : begin
                     if (r_curr_addr < `NUM_LEDS) begin
-                        led_brightness[r_curr_addr] <= r_curr_payload;
+                        led_brightness[r_curr_addr] <= r_curr_payload[7:1];
                     end
                 end
                 `CMD_LED_READ : begin
