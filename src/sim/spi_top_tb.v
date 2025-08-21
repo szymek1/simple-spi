@@ -56,6 +56,16 @@ module spi_top_tb (
     wire                            led7;
     wire                            led8;
 
+    // debug outputs
+    /*
+    wire [`PAYLOAD_BITS-2:0]        debug_led0_brightness;
+    wire                            debug_led0_pwm;
+    wire                            rx_dv;
+    wire [`CMD_BITS-1:0]            debug_cmd;
+    wire [`ADDR_BITS-1:0]           debug_addr;
+    wire [`PAYLOAD_BITS-1:0]        debug_payload;
+    */
+
     // Utils: used to instantiate master i_frame
     reg  [`CMD_BITS-1:0]            mock_master_cmd_bits;
     reg  [`ADDR_BITS-1:0]           mock_master_addr_bits;
@@ -95,6 +105,14 @@ module spi_top_tb (
         .led6(led6),
         .led7(led7),
         .led8(led8)
+        /*
+        .led0_brightness(debug_led0_brightness),
+        .pwm_led0_out(debug_led0_pwm),
+        .rx_dv(rx_dv),
+        .curr_cmd(debug_cmd),
+        .curr_addr(debug_addr),
+        .curr_payload(debug_payload)
+        */
     );
 
     initial begin
@@ -105,107 +123,123 @@ module spi_top_tb (
     integer i;
     initial begin
         $dumpfile("spi_top_tb_waveforms.vcd");
+        /*
         $dumpvars(0, spi_top_tb.clk,
                      spi_top_tb.sclk,
                      spi_top_tb.cs,
                      spi_top_tb.mosi,
                      spi_top_tb.i_frame,
                      spi_top_tb.led1,
-                     spi_top_tb.spi_top_uut.rx_dv,
-                     spi_top_tb.spi_top_uut.led_brightness[0],
-                     spi_top_tb.spi_top_uut.pwm_gen[0].pwm_inst.o_pwm,
-                     spi_top_tb.spi_top_uut.pwm_gen[0].pwm_inst.o_cnt);
+                     spi_top_tb.rx_dv,
+                     spi_top_tb.debug_cmd,
+                     spi_top_tb.debug_addr,
+                     spi_top_tb.debug_payload,
+                     spi_top_tb.debug_led0_brightness,
+                     spi_top_tb.debug_led0_pwm);
+        */
+        $dumpvars(0, spi_top_tb.clk,
+                     spi_top_tb.sclk,
+                     spi_top_tb.cs,
+                     spi_top_tb.mosi,
+                     spi_top_tb.i_frame,
+                     spi_top_tb.led1,
+                     spi_top_tb.led2,
+                     spi_top_tb.led3,
+                     spi_top_tb.led4,
+                     spi_top_tb.led5,
+                     spi_top_tb.led6,
+                     spi_top_tb.led7,
+                     spi_top_tb.led8);
 
         // Initial conditions
         tx_enb     = 1'b0;
         i_frame    = 0;
         #(3 * `SLAVE_CLK_NS);
-        /*
         // Test 1: CMD_NOP should not change any LED brightness
         $display("Test 1: Sending CMD_NOP");
         i_frame = {`CMD_NOP, `ADDR_NONE, `PAYLOAD_NONE};
         tx_enb = 1'b1;
         // Wait for transaction completion
-        #(`SLAVE_CLK_NS);
+        #(2 * `SLAVE_CLK_NS);
+        tx_enb = 1'b0;
         @(posedge cs);
-        #(2.5*`SLAVE_CLK_NS);
-
+        #(`SLAVE_CLK_NS);
         for (i  = 0; i < `NUM_LEDS; i = i + 1) begin
-            if (spi_top_uut.led_brightness[i] == 7'h0) begin
+            if (spi_top_uut.led_brightness[i] == 1'b0) begin
                 $display("PASS: LED %d has still 0 brightness", i);
             end else begin
-                $display("FAILS: LED %d has %d brightness", i, spi_top_uut.led_brightness[i]);
+                $display("FAILS: LED %d has %b brightness", i, spi_top_uut.led_brightness[i]);
             end
         end
 
-        tx_enb = 1'b0;
-        #(20 * `SLAVE_CLK_NS);
-        */
-        // Test 2: CMD_LED_SET for LED0 (addr 0) to 0x40 (64, mid brightness)
-        $display("Test 2: Sending CMD_LED_SET for LED0 to 0x40");
-        i_frame = {`CMD_LED_SET, 8'h00, 8'h40}; // left shift payload as only 7 first bit have a value
+        #(2 * `MASTER_CLK_NS);
+
+        // Test 2: CMD_LED_SET for LED1 (addr 0) to 1
+        $display("Test 2: Sending CMD_LED_SET for LED0 to 1");
+        i_frame = {`CMD_LED_SET, 8'h00, {7'hA, 1'h0}}; // left shift payload as only 7 first bit have a value
         tx_enb = 1'b1;
         // Wait for transaction completion
-        #(`SLAVE_CLK_NS);
+        #(2 * `SLAVE_CLK_NS);
+        tx_enb = 1'b0;
         @(posedge cs);
-        #(2.5*`SLAVE_CLK_NS);
-        if (spi_top_uut.led_brightness[0] == 7'h40) begin
-            $display("PASS: LED0 brightness set to 0x%h", spi_top_uut.led_brightness[0]);
+        #(5 * `SLAVE_CLK_NS);
+        if (led1 == 1'b1) begin
+            $display("PASS: LED0 brightness set to 0x%b", led1);
         end else begin
-            $display("FAIL: LED0 brightness is 0x%h (expected 0x40)", spi_top_uut.led_brightness[0]);
+            $display("FAIL: LED0 brightness is 0x%b (expected 1)", led1);
         end
 
-        tx_enb = 1'b0;
-        #(20 * `SLAVE_CLK_NS);
-        /*
-        // Test 3: CMD_LED_SET for LED7 (addr 7) to 0x7F (max 7-bit brightness)
-        $display("Test 3: Sending CMD_LED_SET for LED7 to 0x7F");
-        i_frame = {`CMD_LED_SET, 8'h07, 8'h7F}; // left shift payload as only 7 first bit have a value
+        #(2 * `MASTER_CLK_NS);
+        
+        // Test 3: CMD_LED_SET for LED7 (addr 8) to 1
+        $display("Test 3: Sending CMD_LED_SET for LED7 to 1");
+        i_frame = {`CMD_LED_SET, 8'h07, {7'hA, 1'h0}}; // left shift payload as only 7 first bit have a value
         tx_enb = 1'b1;
         // Wait for transaction completion
-        #(`SLAVE_CLK_NS);
+        #(2 * `SLAVE_CLK_NS);
+        tx_enb = 1'b0;
         @(posedge cs);
-        #(2.5*`SLAVE_CLK_NS);
-        if (spi_top_uut.led_brightness[7] == 7'h7F) begin
-            $display("PASS: LED7 brightness set to 0x%h", spi_top_uut.led_brightness[7]);
+        #(5 * `SLAVE_CLK_NS);
+        if (led8 == 1'b1) begin
+            $display("PASS: LED8 brightness set to 0x%b", led8);
         end else begin
-            $display("FAIL: LED7 brightness is 0x%h (expected 0x7F)", spi_top_uut.led_brightness[7]);
+            $display("FAIL: LED8 brightness is 0x%b (expected 1)", led8);
         end
 
-        tx_enb = 1'b0;
-        #(20 * `SLAVE_CLK_NS);
+        #(2 * `MASTER_CLK_NS);
 
         // Test 4: CMD_LED_SET with invalid addr (0x10 > 7) - Should not change any LED
         $display("Test 4: Sending CMD_LED_SET with invalid addr 0x10");
         i_frame = {`CMD_LED_SET, `ADDR_NONE, 8'hFF};
         tx_enb = 1'b1;
         // Wait for transaction completion
-        #(`SLAVE_CLK_NS);
+        #(2 * `SLAVE_CLK_NS);
+        tx_enb = 1'b0;
         @(posedge cs);
-        #(2.5*`SLAVE_CLK_NS);
-        if (spi_top_uut.led_brightness[0] == 7'h40 && spi_top_uut.led_brightness[7] == 7'h7F) begin
+        #(5 * `SLAVE_CLK_NS);
+        if (led1 == 1'b1 && led8 == 1'b1) begin
             $display("PASS: Invalid addr did not change existing brightness");
         end else begin
             $display("FAIL: Brightness changed unexpectedly");
         end
 
-        tx_enb = 1'b0;
-        #(20 * `SLAVE_CLK_NS);
+        #(2 * `MASTER_CLK_NS);
 
-        // Test 5: CMD_LED_SET for LED3 (addr 3) to 0x00 (off)
+        // Test 5: CMD_LED_SET for LED4 (addr 3) to 0x00 (off)
         $display("Test 5: Sending CMD_LED_SET for LED3 to 0x00");
-        i_frame = {`CMD_LED_SET, 8'h03, 8'h00};
+        i_frame = {`CMD_LED_SET, 8'h03, {7'hB, 1'h0}};
         tx_enb = 1'b1;
         // Wait for transaction completion
-        #(`SLAVE_CLK_NS);
+        #(2 * `SLAVE_CLK_NS);
+        tx_enb = 1'b0;
         @(posedge cs);
-        #(2.5*`SLAVE_CLK_NS);
-        if (spi_top_uut.led_brightness[3] == 7'h00) begin
-            $display("PASS: LED3 brightness set to 0x%h", spi_top_uut.led_brightness[3]);
+        #(5 * `SLAVE_CLK_NS);
+        if (led4 == 1'b0) begin
+            $display("PASS: LED4 brightness set to 0x%b", led4);
         end else begin
-            $display("FAIL: LED3 brightness is 0x%h (expected 0x00)", spi_top_uut.led_brightness[3]);
+            $display("FAIL: LED4 brightness is 0x%h (expected 0x00)", led4);
         end
-        */
+        
         #(5 * `SLAVE_CLK_NS);
         $finish;
 

@@ -112,19 +112,19 @@ module spi_slave_tb (
     integer i;
     initial begin
         $dumpfile("spi_slave_tb_waveforms.vcd");
-        /*
         // No debug wires enabled
         $dumpvars(0, spi_slave_tb.clk,
                      spi_slave_tb.sclk,
                      spi_slave_tb.cs,
                      spi_slave_tb.miso,
                      spi_slave_tb.mosi,
+                     spi_slave_tb.rx_dv,
                      spi_slave_tb.o_cmd,
                      spi_slave_tb.o_addr,
                      spi_slave_tb.o_payload,
                      spi_slave_tb.o_serial_debug,
                      spi_slave_tb.o_debug_stage);
-        */
+        
         /*
         // Debug wires enabled for SPI slave
         $dumpvars(0, spi_slave_tb.clk,
@@ -141,6 +141,7 @@ module spi_slave_tb (
                      spi_slave_tb.o_addr,
                      spi_slave_tb.o_payload);
         */
+        /*
         // Debug wires enabled for SPI master
         $dumpvars(0, spi_slave_tb.clk,
                      spi_slave_tb.sclk,
@@ -158,6 +159,7 @@ module spi_slave_tb (
                      spi_slave_tb.o_serial_debug,
                      spi_slave_tb.o_bit_rx_cnt_debug,
                      spi_slave_tb.o_debug_stage);
+        */
         // Initial conditions
         tx_enb     = 1'b0;
         slv_tx_enb = 1'b0;

@@ -44,7 +44,8 @@ module pwm (
         end else begin
             // counter will overflow back to 0
             o_cnt <= o_cnt + 1'd1;
-            o_pwm <= ((o_cnt + 1'd1) < r_d) ? 1'b0 : 1'b1; // >=
+            // o_pwm <= ((o_cnt + 1'd1) < r_d) ? 1'b0 : 1'b1; // >=
+            o_pwm <= (o_cnt < r_d) ? 1'b0 : 1'b1;
         end
 
         if (o_cnt == (2**`BRIGHTNESS_WIDTH - 1)) begin

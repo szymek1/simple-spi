@@ -32,7 +32,8 @@ module spi_slave (
     input  wire                            cs,
     input  wire                            mosi,
     input  wire                            slv_tx_enb,
-    input  wire  [`MASTER_FRAME_WIDTH-1:0] i_slv_frame,
+    input  wire  [`MASTER_FRAME_WIDTH-1:0] i_slv_frame, // instead of full frame loaded at the beginning
+                                                        // we should put bit by bit
     output reg                             miso,
     output wire  [`CMD_BITS-1:0]           o_cmd,
     output wire  [`ADDR_BITS-1:0]          o_addr,
