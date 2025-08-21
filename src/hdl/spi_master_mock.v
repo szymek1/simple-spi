@@ -25,14 +25,20 @@
 
 
 module spi_master_mock (
+    // Inputs
+    // Internal FPGA clock
     input                                 sysclk,
+    // Coming from testbench
     input  wire                           tx_enb,      // high active for data frame ready to send
     input  wire [`MASTER_FRAME_WIDTH-1:0] i_frame,     // input data frame- its creation is done outside of the module
+    // Coming from SPI Slave
     input  wire                           miso,        // read input from slave
+    // Outputs
     output reg                            cs,          // chip select (active low)
     output wire                           sclk,        // clock signal issued to slave
     output reg                            mosi,        // serial master output
     output wire [`BRIGHTNESS_WIDTH-1:0]   o_frame,     // entire response
+    // Debug outputs
     output reg  [`MASTER_FRAME_WIDTH-1:0] o_m_shift_reg_debug,
     output reg                            o_m_serial_debug,
     output reg  [4:0]                     o_m_bit_rx_cnt_debug,
@@ -88,8 +94,6 @@ module spi_master_mock (
                 cs               <= `CS_DEASSERT;
                 bit_frame_cnt    <= 0;
                 mosi             <= 1'b0;
-                // shift_reg_tx     <= 0;
-                // shift_reg_tx <= i_frame;
                 if (tx_enb == 1'b1) begin
                     shift_reg_tx <= i_frame;
                     cs           <= `CS_ASSERT;
@@ -138,9 +142,7 @@ module spi_master_mock (
             end
             DONE   : begin
                 cs            <= `CS_DEASSERT;
-                // mosi          <= 1'b0; // latching on the very last bit
                 bit_frame_cnt <= 0;
-                // shift_reg_tx  <= 0;
                 curr_state    <= IDLE;
             end
             default: curr_state <= IDLE;
@@ -157,8 +159,8 @@ module spi_master_mock (
             o_m_shift_reg_debug  <= shift_reg_rx;
             o_m_bit_rx_cnt_debug <= bit_rx_cnt;
 
-            rx_dv                <= 1'b0; // transmission ongoing
-            if (sclk_rising) begin //  && curr_state != IDLE && curr_state != DONE
+            rx_dv                <= 1'b0;
+            if (sclk_rising) begin 
                 shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], miso};
                 bit_rx_cnt   <= bit_rx_cnt + 1;
                 if (bit_rx_cnt == `MASTER_FRAME_WIDTH - 1) begin
