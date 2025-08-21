@@ -30,9 +30,6 @@ module spi_top (
     input  wire                            sclk,
     input  wire                            cs,
     input  wire                            mosi,
-    // input  wire                            slv_tx_enb,  // issued interanlly
-    // input  wire  [`MASTER_FRAME_WIDTH-1:0] i_slv_frame, // created internally
-    // Outputs
     // PMOD JA output
     output wire                            miso,
     // PMOD JE outputs (LEDs)
@@ -44,40 +41,30 @@ module spi_top (
     output wire                            led6,
     output wire                            led7,
     output wire                            led8
-    /*
-    output reg  [`PAYLOAD_BITS-2:0]        led0_brightness,
-    output wire                            pwm_led0_out,
-    output wire                            rx_dv,
-    output wire [`CMD_BITS-1:0]            curr_cmd,
-    output wire [`ADDR_BITS-1:0]           curr_addr,
-    output wire [`PAYLOAD_BITS-1:0]        curr_payload
-    */
 );
 
-    /*
     reg                            r_rx_dv          = 1'b0;
-    reg                            slv_tx_enb       = 1'b0;
+    reg                            slv_tx_enb       = 1'b1;   // always enabled
     reg [`MASTER_FRAME_WIDTH-1:0]  i_slv_frame      = 0;
-    */
-    wire [`CMD_BITS-1:0]           curr_cmd;         // = `CMD_NOP;
-    wire [`ADDR_BITS-1:0]          curr_addr;        // = `ADDR_NONE;
-    wire [`PAYLOAD_BITS-1:0]       curr_payload;     // = `PAYLOAD_NONE;
+
+    wire [`CMD_BITS-1:0]           curr_cmd;                  // default `CMD_NOP;
+    wire [`ADDR_BITS-1:0]          curr_addr;                 // default `ADDR_NONE;
+    wire [`PAYLOAD_BITS-1:0]       curr_payload;              // default `PAYLOAD_NONE;
+    
     wire                           rx_dv;
-    /*
-    reg [`CMD_BITS-1:0]            r_curr_cmd       = `CMD_NOP;
-    reg [`ADDR_BITS-1:0]           r_curr_addr      = `ADDR_NONE;
-    reg [`PAYLOAD_BITS-1:0]        r_curr_payload   = `PAYLOAD_NONE;
-    */
+    wire                           rd_bypass;
+    wire                           rx_addr_dv;
+
+    reg  [7:0]                     tx_payload        = 8'b0;  // prepared payload for slave transmission
+
     // Register file for storing LED information
     // reg [`PAYLOAD_BITS-2:0] led_brightness [0:`NUM_LEDS-1];  // register file for brightness values
     //                                                          // LED birghtness level is 7-bit long
     reg [0:0] led_brightness [0:`NUM_LEDS-1];
-    // assign debug_led0_brightness = led_brightness[0];
     integer i;
     initial begin
         for (i = 0; i < `NUM_LEDS; i = i + 1) begin
             led_brightness[i] = 1'b0;  // all LEDs are set to 0% brithgntess
-                                       // how to parametrize it?
         end
     end
  
@@ -105,41 +92,27 @@ module spi_top (
         .sclk(sclk),
         .cs(cs),
         .mosi(mosi),
-        .slv_tx_enb(slv_tx_enb),
-        .i_slv_frame(i_slv_frame),
+        .i_tx_payload(tx_payload),
         .miso(miso),
         .o_cmd(curr_cmd),
         .o_addr(curr_addr),
         .o_payload(curr_payload),
         .rx_dv(rx_dv),
+        .rd_bypass(rd_bypass),
+        .rx_addr_dv(rx_addr_dv),
         .o_shift_reg_debug(),
         .o_serial_debug(),
         .o_bit_rx_cnt_debug(),
         .o_debug_stage()
     );
 
-    /*
     always @(posedge sysclk) begin
-        // r_rx_dv <= (cs == `CS_DEASSERT) ? rx_dv : r_rx_dv;
-        r_rx_dv <= rx_dv;
-    end
-
-    always @(posedge sysclk) begin
-        if (rx_dv == 1'b1) begin //  && cs == `CS_DEASSERT
-            r_curr_cmd     <= curr_cmd;
-            r_curr_addr    <= curr_addr;
-            r_curr_payload <= curr_payload;
-        end
-    end
-    */
-
-    always @(posedge sysclk) begin
-        if (rx_dv == 1'b1) begin //  && cs == `CS_DEASSERT
+        if (rx_dv == 1'b1 || (rd_bypass == 1'b1 && rx_addr_dv == 1'b1)) begin //  && cs == `CS_DEASSERT
             case (curr_cmd)
                 `CMD_LED_SET  : begin
                     if (curr_addr < `NUM_LEDS) begin
                         // becasue I can't figure out what's wrong with PWM
-                        // this will be a wrok around for now
+                        // this will be a work around for now
                         case (curr_payload[7:1])
                             7'hA   : led_brightness[curr_addr] <= 1'b1;
                             7'hB   : led_brightness[curr_addr] <= 1'b0;
@@ -148,13 +121,16 @@ module spi_top (
                     end
                 end
                 `CMD_LED_READ : begin
-                    // TODO- requires modyfying spi_slave
+                    if (curr_addr < `NUM_LEDS) begin
+                        tx_payload <= (led_brightness[curr_addr] == 1'b1) ? 8'b00000001 : 8'b00000000;
+                    end
                 end
                 `CMD_NOP      : begin
                     // Do nothing
                 end
             endcase
         end
+
     end
 
     assign led1 = led_brightness[0];
