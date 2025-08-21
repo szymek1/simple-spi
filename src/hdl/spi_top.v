@@ -54,15 +54,21 @@ module spi_top (
     */
 );
 
-    /*
     reg                            r_rx_dv          = 1'b0;
-    reg                            slv_tx_enb       = 1'b0;
+    reg                            slv_tx_enb       = 1'b1; // always enabled
     reg [`MASTER_FRAME_WIDTH-1:0]  i_slv_frame      = 0;
-    */
+
     wire [`CMD_BITS-1:0]           curr_cmd;         // = `CMD_NOP;
     wire [`ADDR_BITS-1:0]          curr_addr;        // = `ADDR_NONE;
     wire [`PAYLOAD_BITS-1:0]       curr_payload;     // = `PAYLOAD_NONE;
+    
     wire                           rx_dv;
+    wire                           rd_bypass;
+    wire                           rx_addr_dv;
+
+    // reg                            tx_bit; // current bit to transmit
+    reg  [7:0]                     tx_payload = 8'b0;  // Prepared payload for slave transmission
+
     /*
     reg [`CMD_BITS-1:0]            r_curr_cmd       = `CMD_NOP;
     reg [`ADDR_BITS-1:0]           r_curr_addr      = `ADDR_NONE;
@@ -99,19 +105,42 @@ module spi_top (
         end
     endgenerate
     */
-    
+    /*
     spi_slave SPI_SLV (
         .sysclk(sysclk),
         .sclk(sclk),
         .cs(cs),
         .mosi(mosi),
         .slv_tx_enb(slv_tx_enb),
-        .i_slv_frame(i_slv_frame),
+        // .i_slv_frame(i_slv_frame),
+        .i_tx_bit(tx_bit),
         .miso(miso),
         .o_cmd(curr_cmd),
         .o_addr(curr_addr),
         .o_payload(curr_payload),
         .rx_dv(rx_dv),
+        .rd_bypass(rd_bypass),
+        .rx_addr_dv(rx_addr_dv),
+        .o_shift_reg_debug(),
+        .o_serial_debug(),
+        .o_bit_rx_cnt_debug(),
+        .o_debug_stage()
+    );
+    */
+
+    spi_slave SPI_SLV (
+        .sysclk(sysclk),
+        .sclk(sclk),
+        .cs(cs),
+        .mosi(mosi),
+        .i_tx_payload(tx_payload),
+        .miso(miso),
+        .o_cmd(curr_cmd),
+        .o_addr(curr_addr),
+        .o_payload(curr_payload),
+        .rx_dv(rx_dv),
+        .rd_bypass(rd_bypass),
+        .rx_addr_dv(rx_addr_dv),
         .o_shift_reg_debug(),
         .o_serial_debug(),
         .o_bit_rx_cnt_debug(),
@@ -134,12 +163,12 @@ module spi_top (
     */
 
     always @(posedge sysclk) begin
-        if (rx_dv == 1'b1) begin //  && cs == `CS_DEASSERT
+        if (rx_dv == 1'b1 || (rd_bypass == 1'b1 && rx_addr_dv == 1'b1)) begin //  && cs == `CS_DEASSERT
             case (curr_cmd)
                 `CMD_LED_SET  : begin
                     if (curr_addr < `NUM_LEDS) begin
                         // becasue I can't figure out what's wrong with PWM
-                        // this will be a wrok around for now
+                        // this will be a work around for now
                         case (curr_payload[7:1])
                             7'hA   : led_brightness[curr_addr] <= 1'b1;
                             7'hB   : led_brightness[curr_addr] <= 1'b0;
@@ -148,13 +177,16 @@ module spi_top (
                     end
                 end
                 `CMD_LED_READ : begin
-                    // TODO- requires modyfying spi_slave
+                    if (curr_addr < `NUM_LEDS) begin
+                        tx_payload <= (led_brightness[curr_addr] == 1'b1) ? 8'b00000001 : 8'b00000000;
+                    end
                 end
                 `CMD_NOP      : begin
                     // Do nothing
                 end
             endcase
         end
+
     end
 
     assign led1 = led_brightness[0];

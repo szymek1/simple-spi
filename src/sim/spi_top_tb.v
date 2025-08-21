@@ -38,7 +38,7 @@ module spi_top_tb (
     wire                            cs;
     wire                            sclk;
     wire                            mosi;
-    // wire                            o_frame;
+    wire [`BRIGHTNESS_WIDTH-1:0]    o_frame;
 
     // Inputs: slave
     // cs  - from master
@@ -81,11 +81,11 @@ module spi_top_tb (
         .sysclk(clk),
         .tx_enb(tx_enb),
         .i_frame(i_frame),
-        .miso(),
+        .miso(miso),
         .cs(cs),
         .sclk(sclk),
         .mosi(mosi),
-        .o_frame(),
+        .o_frame(o_frame),
         .o_m_shift_reg_debug(),
         .o_m_serial_debug(),
         .o_m_bit_rx_cnt_debug()
@@ -96,7 +96,7 @@ module spi_top_tb (
         .sclk(sclk),
         .cs(cs),
         .mosi(mosi),
-        .miso(),
+        .miso(miso),
         .led1(led1),
         .led2(led2),
         .led3(led3),
@@ -141,6 +141,7 @@ module spi_top_tb (
                      spi_top_tb.sclk,
                      spi_top_tb.cs,
                      spi_top_tb.mosi,
+                     spi_top_tb.miso,
                      spi_top_tb.i_frame,
                      spi_top_tb.led1,
                      spi_top_tb.led2,
@@ -149,7 +150,8 @@ module spi_top_tb (
                      spi_top_tb.led5,
                      spi_top_tb.led6,
                      spi_top_tb.led7,
-                     spi_top_tb.led8);
+                     spi_top_tb.led8,
+                     spi_top_tb.o_frame);
 
         // Initial conditions
         tx_enb     = 1'b0;
@@ -238,6 +240,21 @@ module spi_top_tb (
             $display("PASS: LED4 brightness set to 0x%b", led4);
         end else begin
             $display("FAIL: LED4 brightness is 0x%h (expected 0x00)", led4);
+        end
+
+        // Test 6: CMD_LED_READ for LED8 (addr 7)
+        $display("Test 6: Sending CMD_LED_READ for LED8 and expecting response");
+        i_frame = {`CMD_LED_READ, 8'h07, 8'hC}; // payload section irrelevant
+        tx_enb = 1'b1;
+        // Wait for transaction completion
+        #(2 * `SLAVE_CLK_NS);
+        tx_enb = 1'b0;
+        @(posedge cs);
+        #(5 * `SLAVE_CLK_NS);
+        if (o_frame == 0000001) begin
+            $display("PASS: slave reported LED7 value: %h", o_frame);
+        end else begin
+            $display("FAIL: slave reported LED7 value: %h, expected 1", o_frame);
         end
         
         #(5 * `SLAVE_CLK_NS);

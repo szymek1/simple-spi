@@ -32,13 +32,17 @@ module spi_slave (
     input  wire                            cs,
     input  wire                            mosi,
     input  wire                            slv_tx_enb,
-    input  wire  [`MASTER_FRAME_WIDTH-1:0] i_slv_frame, // instead of full frame loaded at the beginning
-                                                        // we should put bit by bit
+    // input  wire  [`MASTER_FRAME_WIDTH-1:0] i_slv_frame, // instead of full frame loaded at the beginning
+    //                                                     // we should put bit by bit
+    // input  reg                             i_tx_bit, // bit to transmit issued by spi_top
+    input  wire [7:0]                      i_tx_payload,  // payload from spi_top for read responses
     output reg                             miso,
     output wire  [`CMD_BITS-1:0]           o_cmd,
     output wire  [`ADDR_BITS-1:0]          o_addr,
     output wire  [`PAYLOAD_BITS-1:0]       o_payload,
     output wire                            rx_dv,
+    output wire                            rd_bypass, // active high when read command detected
+    output reg                             rx_addr_dv,
     output reg   [`MASTER_FRAME_WIDTH-1:0] o_shift_reg_debug,
     output reg                             o_serial_debug,
     output reg   [4:0]                     o_bit_rx_cnt_debug,
@@ -60,7 +64,12 @@ module spi_slave (
 
     // Slave transmitter
     reg [4:0]                     bit_tx_cnt = 0;
-    reg [`MASTER_FRAME_WIDTH-1:0] shift_reg_tx = 0;
+    reg [7:0]                     tx_payload_reg  = 0;  // Loaded payload for read responses
+    // Both used to inform spi_top about the read command and 
+    // address from which to read, they will be used when rd_bypass is set to high
+    reg [`CMD_BITS-1:0]           rx_cmd     = `CMD_NOP;
+    reg [`ADDR_BITS-1:0]          rx_addr    = `ADDR_NONE;
+    // reg [`MASTER_FRAME_WIDTH-1:0] shift_reg_tx = 0;
 
     // Clock edge detection with proper synchronization
     reg [2:0]                     sclk_sync = 3'b000;
@@ -103,6 +112,9 @@ module spi_slave (
                         bit_rx_cnt      <= 0;
                         first_edge_seen <= 0;
                         shift_reg_rx    <= 0; // reset shift register when starting new transaction
+                        rx_cmd          <= `CMD_NOP;
+                        rx_addr         <= `ADDR_NONE;
+                        rx_addr_dv      <= 1'b0;
                     end
                 end
                 
@@ -118,6 +130,7 @@ module spi_slave (
                     end
 
                     if (bit_rx_cnt == `CMD_BITS) begin
+                        rx_cmd     <= shift_reg_rx[7:0]; // command here occupies those bits
                         curr_state <= ADDRESS;
                         bit_rx_cnt <= 0;
                     end
@@ -127,11 +140,18 @@ module spi_slave (
                     if (sclk_rising) begin
                         shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], mosi};
                         bit_rx_cnt   <= bit_rx_cnt + 1;
+                        if (bit_rx_cnt == `ADDR_BITS - 1) begin
+                            rx_addr    <= {shift_reg_rx[6:0], mosi};  // Full address after last shift
+                            rx_addr_dv <= 1'b1;  // Pulse to notify top
+                        end
                     end
 
                     if (bit_rx_cnt == `ADDR_BITS) begin
                         curr_state <= WRITE;
                         bit_rx_cnt <= 0;
+                        if (rx_cmd == `CMD_LED_READ) begin
+                            tx_payload_reg <= i_tx_payload;  // Load payload for transmission in write phase
+                        end
                     end
                 end
                 
@@ -170,39 +190,33 @@ module spi_slave (
 
     // output assignments - data is valid when CS is deasserted (rx_dv high)
     assign rx_dv     = (cs_sync[1] == `CS_DEASSERT) ? 1'b1                : 1'b0;
-    assign o_cmd     = (rx_dv == 1'b1)              ? shift_reg_rx[23:16] : `CMD_NOP;
-    assign o_addr    = (rx_dv == 1'b1)              ? shift_reg_rx[15:8]  : `ADDR_NONE;
+    assign rd_bypass = (rx_cmd == `CMD_LED_READ)    ? 1'b1                : 1'b0;
+    
+    assign o_cmd     = (rx_dv == 1'b1)              ? shift_reg_rx[23:16] : 
+                       (rd_bypass == 1'b1)          ? rx_cmd              : `CMD_NOP;
+
+    assign o_addr    = (rx_dv == 1'b1)              ? shift_reg_rx[15:8]  :
+                       (rd_bypass == 1'b1)          ? rx_addr             : `ADDR_NONE;
+
     assign o_payload = (rx_dv == 1'b1)              ? shift_reg_rx[7:0]   : `PAYLOAD_NONE;
 
     // transmit logic - setup data on falling edge of SCLK (SPI Mode 0)
     always @(posedge sysclk) begin
-        if (cs_sync[1] == `CS_DEASSERT) begin
-            miso <= 1'b0;
+        if (cs_sync[1] == `CS_DEASSERT || cs_falling) begin
             bit_tx_cnt <= 0;
-            shift_reg_tx <= 0;
-        end
-        if (cs_falling) begin
-            shift_reg_tx <= i_slv_frame;
-        end
-        else if (slv_tx_enb) begin
-            o_bit_rx_cnt_debug <= bit_tx_cnt;
-            o_shift_reg_debug  <= shift_reg_tx;
-            o_serial_debug     <= miso;
-            // Load transmit data when enabled
-            /*
-            if (bit_tx_cnt == 0 && !sclk_falling) begin
-                shift_reg_tx <= i_slv_frame;
+            miso       <= 0;  // Idle low
+            tx_payload_reg <= 0;  // Reset payload
+        end else begin
+            if (sclk_falling) begin
+                if (bit_tx_cnt < `MASTER_FRAME_WIDTH) begin
+                    if (bit_tx_cnt < `CMD_BITS + `ADDR_BITS) begin  // First 16 bits: always 0
+                        miso <= 0;
+                    end else begin  // Last 8 bits: payload (0 for set, LED value for read)
+                        miso <= tx_payload_reg[`PAYLOAD_BITS - 1 - (bit_tx_cnt - (`CMD_BITS + `ADDR_BITS))];
+                    end
+                    bit_tx_cnt <= bit_tx_cnt + 1;
+                end
             end
-            */
-            // Shift data out on falling edge of SCLK
-            if (sclk_falling && bit_tx_cnt < `MASTER_FRAME_WIDTH) begin
-                miso <= shift_reg_tx[`MASTER_FRAME_WIDTH - 1];
-                shift_reg_tx <= {shift_reg_tx[`MASTER_FRAME_WIDTH-2:0], 1'b0};
-                bit_tx_cnt <= bit_tx_cnt + 1;
-            end
-        end
-        else begin
-            miso <= 1'b0;
         end
     end
 
