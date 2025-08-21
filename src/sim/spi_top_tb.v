@@ -233,6 +233,54 @@ module spi_top_tb (
         end else begin
             $display("FAIL: slave reported LED7 value: %h, expected 1", o_frame);
         end
+
+        // Test 7: CMD_LED_READ for LED5 (addr 4)
+        $display("Test 7: Sending CMD_LED_READ for LED5 and expecting response");
+        i_frame = {`CMD_LED_READ, 8'h04, 8'hC}; // payload section irrelevant
+        tx_enb = 1'b1;
+
+        // Wait for transaction completion
+        #(2 * `SLAVE_CLK_NS);
+        tx_enb = 1'b0;
+        @(posedge cs);
+        #(`SLAVE_CLK_NS);
+        if (o_frame == 0000000) begin
+            $display("PASS: slave reported LED5 value: %h", o_frame);
+        end else begin
+            $display("FAIL: slave reported LED5 value: %h, expected 0", o_frame);
+        end
+
+        // Test 8: CMD_LED_SET for LED5 (addr 4)
+        $display("Test 8: Sending CMD_LED_SET for LED5 to 0x01");
+        i_frame = {`CMD_LED_SET, 8'h04, {7'hA, 1'h0}}; // payload section irrelevant
+        tx_enb = 1'b1;
+
+        // Wait for transaction completion
+        #(2 * `SLAVE_CLK_NS);
+        tx_enb = 1'b0;
+        @(posedge cs);
+        #(5 * `SLAVE_CLK_NS);
+        if (led5 == 1'b1) begin
+            $display("PASS: LED5 brightness set to 0x%b", led5);
+        end else begin
+            $display("FAIL: LED5 brightness is 0x%b (expected 1)", led5);
+        end
+
+        // Test 9: CMD_LED_READ for LED5 (addr 4)
+        $display("Test 9: Sending CMD_LED_READ for LED5 and expecting response");
+        i_frame = {`CMD_LED_READ, 8'h04, 8'hC}; // payload section irrelevant
+        tx_enb = 1'b1;
+
+        // Wait for transaction completion
+        #(2 * `SLAVE_CLK_NS);
+        tx_enb = 1'b0;
+        @(posedge cs);
+        #(`SLAVE_CLK_NS);
+        if (o_frame == 0000000) begin
+            $display("PASS: slave reported LED5 value: %h", o_frame);
+        end else begin
+            $display("FAIL: slave reported LED5 value: %h, expected 0", o_frame);
+        end
         
         #(5 * `SLAVE_CLK_NS);
         $finish;
