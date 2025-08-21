@@ -42,7 +42,8 @@ module spi_master_mock (
     output reg  [`MASTER_FRAME_WIDTH-1:0] o_m_shift_reg_debug,
     output reg                            o_m_serial_debug,
     output reg  [4:0]                     o_m_bit_rx_cnt_debug,
-    output reg  [2:0]                     o_m_stage_debug
+    output reg  [2:0]                     o_m_stage_debug,
+    output wire                           rx_dv
 );
 
     // SPI Master FSM
@@ -63,7 +64,6 @@ module spi_master_mock (
     // Master receiver
     reg [4:0]                     bit_rx_cnt   = 0;
     reg [`MASTER_FRAME_WIDTH-1:0] shift_reg_rx = 0;    // receive shift register
-    reg                           rx_dv        = 0;
 
     // 26MHz pulse generator
     reg                           sclk_prev;
@@ -159,17 +159,16 @@ module spi_master_mock (
             o_m_shift_reg_debug  <= shift_reg_rx;
             o_m_bit_rx_cnt_debug <= bit_rx_cnt;
 
-            rx_dv                <= 1'b0;
             if (sclk_rising) begin 
                 shift_reg_rx <= {shift_reg_rx[`MASTER_FRAME_WIDTH-2:0], miso};
                 bit_rx_cnt   <= bit_rx_cnt + 1;
                 if (bit_rx_cnt == `MASTER_FRAME_WIDTH - 1) begin
                     bit_rx_cnt <= 0;
-                    rx_dv      <= 1'b1;
                 end
             end
         end
     end
+    assign rx_dv   = (cs == `CS_DEASSERT) ? 1'b1 : 1'b0;
     assign o_frame = (rx_dv == 1'b1) ? shift_reg_rx[6:0] : 0;
 
 endmodule

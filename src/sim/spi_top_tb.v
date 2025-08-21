@@ -65,6 +65,7 @@ module spi_top_tb (
     wire [`ADDR_BITS-1:0]           debug_addr;
     wire [`PAYLOAD_BITS-1:0]        debug_payload;
     */
+    wire                            rx_dv;
 
     spi_master_mock spi_master_uut (
         .sysclk(clk),
@@ -77,7 +78,8 @@ module spi_top_tb (
         .o_frame(o_frame),
         .o_m_shift_reg_debug(),
         .o_m_serial_debug(),
-        .o_m_bit_rx_cnt_debug()
+        .o_m_bit_rx_cnt_debug(),
+        .rx_dv(rx_dv)
     );
 
     spi_top spi_top_uut (
@@ -118,7 +120,8 @@ module spi_top_tb (
                      spi_top_tb.led6,
                      spi_top_tb.led7,
                      spi_top_tb.led8,
-                     spi_top_tb.o_frame);
+                     spi_top_tb.o_frame,
+                     spi_top_tb.rx_dv);
 
         // Initial conditions
         tx_enb     = 1'b0;
@@ -219,12 +222,12 @@ module spi_top_tb (
         $display("Test 6: Sending CMD_LED_READ for LED8 and expecting response");
         i_frame = {`CMD_LED_READ, 8'h07, 8'hC}; // payload section irrelevant
         tx_enb = 1'b1;
-        
+
         // Wait for transaction completion
         #(2 * `SLAVE_CLK_NS);
         tx_enb = 1'b0;
         @(posedge cs);
-        #(5 * `SLAVE_CLK_NS);
+        #(`SLAVE_CLK_NS);
         if (o_frame == 0000001) begin
             $display("PASS: slave reported LED7 value: %h", o_frame);
         end else begin
