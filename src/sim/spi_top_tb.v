@@ -56,7 +56,7 @@ module spi_top_tb (
     wire                            led7;
     wire                            led8;
 
-    // debug outputs
+    // Debug outputs
     /*
     wire [`PAYLOAD_BITS-2:0]        debug_led0_brightness;
     wire                            debug_led0_pwm;
@@ -64,17 +64,6 @@ module spi_top_tb (
     wire [`CMD_BITS-1:0]            debug_cmd;
     wire [`ADDR_BITS-1:0]           debug_addr;
     wire [`PAYLOAD_BITS-1:0]        debug_payload;
-    */
-
-    // Utils: used to instantiate master i_frame
-    reg  [`CMD_BITS-1:0]            mock_master_cmd_bits;
-    reg  [`ADDR_BITS-1:0]           mock_master_addr_bits;
-    reg  [`PAYLOAD_BITS-1:0]        mock_master_payload_bits;
-    // used for slave i_slv_frame
-    /*
-    reg  [`CMD_BITS-1:0]            mock_slave_cmd_bits;
-    reg  [`ADDR_BITS-1:0]           mock_slave_addr_bits;
-    reg  [`PAYLOAD_BITS-1:0]        mock_slave_payload_bits;
     */
 
     spi_master_mock spi_master_uut (
@@ -105,14 +94,6 @@ module spi_top_tb (
         .led6(led6),
         .led7(led7),
         .led8(led8)
-        /*
-        .led0_brightness(debug_led0_brightness),
-        .pwm_led0_out(debug_led0_pwm),
-        .rx_dv(rx_dv),
-        .curr_cmd(debug_cmd),
-        .curr_addr(debug_addr),
-        .curr_payload(debug_payload)
-        */
     );
 
     initial begin
@@ -123,20 +104,6 @@ module spi_top_tb (
     integer i;
     initial begin
         $dumpfile("spi_top_tb_waveforms.vcd");
-        /*
-        $dumpvars(0, spi_top_tb.clk,
-                     spi_top_tb.sclk,
-                     spi_top_tb.cs,
-                     spi_top_tb.mosi,
-                     spi_top_tb.i_frame,
-                     spi_top_tb.led1,
-                     spi_top_tb.rx_dv,
-                     spi_top_tb.debug_cmd,
-                     spi_top_tb.debug_addr,
-                     spi_top_tb.debug_payload,
-                     spi_top_tb.debug_led0_brightness,
-                     spi_top_tb.debug_led0_pwm);
-        */
         $dumpvars(0, spi_top_tb.clk,
                      spi_top_tb.sclk,
                      spi_top_tb.cs,
@@ -157,10 +124,12 @@ module spi_top_tb (
         tx_enb     = 1'b0;
         i_frame    = 0;
         #(3 * `SLAVE_CLK_NS);
+
         // Test 1: CMD_NOP should not change any LED brightness
         $display("Test 1: Sending CMD_NOP");
         i_frame = {`CMD_NOP, `ADDR_NONE, `PAYLOAD_NONE};
         tx_enb = 1'b1;
+
         // Wait for transaction completion
         #(2 * `SLAVE_CLK_NS);
         tx_enb = 1'b0;
@@ -180,6 +149,7 @@ module spi_top_tb (
         $display("Test 2: Sending CMD_LED_SET for LED0 to 1");
         i_frame = {`CMD_LED_SET, 8'h00, {7'hA, 1'h0}}; // left shift payload as only 7 first bit have a value
         tx_enb = 1'b1;
+
         // Wait for transaction completion
         #(2 * `SLAVE_CLK_NS);
         tx_enb = 1'b0;
@@ -197,6 +167,7 @@ module spi_top_tb (
         $display("Test 3: Sending CMD_LED_SET for LED7 to 1");
         i_frame = {`CMD_LED_SET, 8'h07, {7'hA, 1'h0}}; // left shift payload as only 7 first bit have a value
         tx_enb = 1'b1;
+
         // Wait for transaction completion
         #(2 * `SLAVE_CLK_NS);
         tx_enb = 1'b0;
@@ -214,6 +185,7 @@ module spi_top_tb (
         $display("Test 4: Sending CMD_LED_SET with invalid addr 0x10");
         i_frame = {`CMD_LED_SET, `ADDR_NONE, 8'hFF};
         tx_enb = 1'b1;
+
         // Wait for transaction completion
         #(2 * `SLAVE_CLK_NS);
         tx_enb = 1'b0;
@@ -231,6 +203,7 @@ module spi_top_tb (
         $display("Test 5: Sending CMD_LED_SET for LED3 to 0x00");
         i_frame = {`CMD_LED_SET, 8'h03, {7'hB, 1'h0}};
         tx_enb = 1'b1;
+
         // Wait for transaction completion
         #(2 * `SLAVE_CLK_NS);
         tx_enb = 1'b0;
@@ -246,6 +219,7 @@ module spi_top_tb (
         $display("Test 6: Sending CMD_LED_READ for LED8 and expecting response");
         i_frame = {`CMD_LED_READ, 8'h07, 8'hC}; // payload section irrelevant
         tx_enb = 1'b1;
+        
         // Wait for transaction completion
         #(2 * `SLAVE_CLK_NS);
         tx_enb = 1'b0;
