@@ -128,15 +128,4 @@ module spi_top (
                      && rx_addr_dv == 1'b1  
                      && curr_addr  < `NUM_LEDS) ? led_brightness[curr_addr] : `PAYLOAD_NONE;
     
-    /*
-    assign led1 = led_brightness[0];
-    assign led2 = led_brightness[1];
-    assign led3 = led_brightness[2];
-    assign led4 = led_brightness[3];
-    assign led5 = led_brightness[4];
-    assign led6 = led_brightness[5];
-    assign led7 = led_brightness[6];
-    assign led8 = led_brightness[7];
-    */
-
 endmodule
