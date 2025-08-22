@@ -55,37 +55,41 @@ module spi_top (
     wire                           rd_bypass;
     wire                           rx_addr_dv;
 
-    reg  [7:0]                     tx_payload        = 8'b0;  // prepared payload for slave transmission
+    wire [`PAYLOAD_BITS-1:0]       tx_payload;                // prepared payload for slave transmission
 
     // Register file for storing LED information
-    // reg [`PAYLOAD_BITS-2:0] led_brightness [0:`NUM_LEDS-1];  // register file for brightness values
-    //                                                          // LED birghtness level is 7-bit long
-    reg [0:0] led_brightness [0:`NUM_LEDS-1];
+    reg [`PAYLOAD_BITS-2:0] led_brightness [0:`NUM_LEDS-1];  // register file for brightness values
+                                                             // LED birghtness level is 7-bit long
+    
     integer i;
     initial begin
         for (i = 0; i < `NUM_LEDS; i = i + 1) begin
-            led_brightness[i] = 1'b0;  // all LEDs are set to 0% brithgntess
+            led_brightness[i] = 7'b0;  // all LEDs are set to 0% brithgntess
         end
     end
  
     // PWM instantiations (one per LED)
-    // wire [`NUM_LEDS-1:0] pwm_out;
-    // assign {led8, led7, led6, led5, led4, led3, led2, led1} = pwm_out;
-    // assign debug_led0_pwm = pwm_out[0];
-    /*
+    wire [`NUM_LEDS-1:0] pwm_out;
+    assign {led8, led7, led6, led5, led4, led3, led2, led1} = pwm_out;
+    
+    reg pwm_enb = 1'b0;  // start disabled for PWM init
+
+    always @(posedge sysclk) begin
+        pwm_enb <= 1'b1;  // enable after first clock cycle
+    end
+
     genvar j;
     generate
         for (j = 0; j < `NUM_LEDS; j = j + 1) begin : pwm_gen
             pwm pwm_inst (
                 .sysclk(sysclk),
-                .i_enb(1'b1),
+                .i_enb(pwm_enb),
                 .i_d(led_brightness[j]),
                 .o_pwm(pwm_out[j]),
                 .o_cnt()
             );
         end
     endgenerate
-    */
     
     spi_slave SPI_SLV (
         .sysclk(sysclk),
@@ -106,25 +110,24 @@ module spi_top (
         .o_debug_stage()
     );
 
+    // Interpreting commands: handling of CMD_LED_READ is done within spi_slave, which
+    // issues rd_bypass and rx_addr_dv to drive tx_payload so spi_top can transfer necessary 
+    // register value to send by the slave. I'm handling CMD_LED_READ outside of synchronous
+    // block as this has previously lead to timing problems and it turned out that the solution
+    // is to use wire for tx_payload.
     always @(posedge sysclk) begin
-        if (rx_dv == 1'b1 || (rd_bypass == 1'b1 && rx_addr_dv == 1'b1)) begin //  && cs == `CS_DEASSERT
+        if (rx_dv == 1'b1) begin //  || (rd_bypass == 1'b1 && rx_addr_dv == 1'b1)
             case (curr_cmd)
                 `CMD_LED_SET  : begin
                     if (curr_addr < `NUM_LEDS) begin
-                        // becasue I can't figure out what's wrong with PWM
-                        // this will be a work around for now
-                        case (curr_payload[7:1])
-                            7'hA   : led_brightness[curr_addr] <= 1'b1;
-                            7'hB   : led_brightness[curr_addr] <= 1'b0;
-                            default: led_brightness[curr_addr] <= led_brightness[curr_addr]; 
-                        endcase
+                        led_brightness[curr_addr] <= curr_payload[7:1];
                     end
                 end
+                /*
                 `CMD_LED_READ : begin
-                    if (curr_addr < `NUM_LEDS) begin
-                        tx_payload <= (led_brightness[curr_addr] == 1'b1) ? 8'b00000001 : 8'b00000000;
-                    end
+                    // already handled with tx_payload as a wire
                 end
+                */
                 `CMD_NOP      : begin
                     // Do nothing
                 end
@@ -132,14 +135,9 @@ module spi_top (
         end
 
     end
-
-    assign led1 = led_brightness[0];
-    assign led2 = led_brightness[1];
-    assign led3 = led_brightness[2];
-    assign led4 = led_brightness[3];
-    assign led5 = led_brightness[4];
-    assign led6 = led_brightness[5];
-    assign led7 = led_brightness[6];
-    assign led8 = led_brightness[7];
-
+    
+    assign tx_payload = (rd_bypass == 1'b1 
+                     && rx_addr_dv == 1'b1  
+                     && curr_addr  < `NUM_LEDS) ? led_brightness[curr_addr] : `PAYLOAD_NONE;
+    
 endmodule
