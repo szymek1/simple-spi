@@ -105,17 +105,24 @@ module spi_top (
         .o_debug_stage()
     );
 
+    // Interpreting commands: handling of CMD_LED_READ is done within spi_slave, which
+    // issues rd_bypass and rx_addr_dv to drive tx_payload so spi_top can transfer necessary 
+    // register value to send by the slave. I'm handling CMD_LED_READ outside of synchronous
+    // block as this has previously lead to timing problems and it turned out that the solution
+    // is to use wire for tx_payload.
     always @(posedge sysclk) begin
-        if (rx_dv == 1'b1 || (rd_bypass == 1'b1 && rx_addr_dv == 1'b1)) begin
+        if (rx_dv == 1'b1) begin //  || (rd_bypass == 1'b1 && rx_addr_dv == 1'b1)
             case (curr_cmd)
                 `CMD_LED_SET  : begin
                     if (curr_addr < `NUM_LEDS) begin
                         led_brightness[curr_addr] <= curr_payload[7:1];
                     end
                 end
+                /*
                 `CMD_LED_READ : begin
                     // already handled with tx_payload as a wire
                 end
+                */
                 `CMD_NOP      : begin
                     // Do nothing
                 end
