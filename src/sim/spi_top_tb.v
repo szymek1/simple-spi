@@ -148,9 +148,9 @@ module spi_top_tb (
 
         #(2 * `MASTER_CLK_NS);
 
-        // Test 2: CMD_LED_SET for LED1 (addr 0) to 1
-        $display("Test 2: Sending CMD_LED_SET for LED0 to 1");
-        i_frame = {`CMD_LED_SET, 8'h00, {7'hA, 1'h0}}; // left shift payload as only 7 first bit have a value
+        // Test 2: CMD_LED_SET for LED1 (addr 0) to 40%
+        $display("Test 2: Sending CMD_LED_SET for LED0 to 40");
+        i_frame = {`CMD_LED_SET, 8'h00, {7'h28, 1'h0}}; // left shift payload as only 7 first bit have a value
         tx_enb = 1'b1;
 
         // Wait for transaction completion
@@ -158,17 +158,17 @@ module spi_top_tb (
         tx_enb = 1'b0;
         @(posedge cs);
         #(5 * `SLAVE_CLK_NS);
-        if (led1 == 1'b1) begin
-            $display("PASS: LED0 brightness set to 0x%b", led1);
+        if (spi_top_uut.led_brightness[0] == 7'h28) begin
+            $display("PASS: LED0 brightness set to 0x%h", spi_top_uut.led_brightness[0]);
         end else begin
-            $display("FAIL: LED0 brightness is 0x%b (expected 1)", led1);
+            $display("FAIL: LED0 brightness is 0x%h (expected 28)", spi_top_uut.led_brightness[0]);
         end
 
         #(2 * `MASTER_CLK_NS);
         
-        // Test 3: CMD_LED_SET for LED7 (addr 8) to 1
-        $display("Test 3: Sending CMD_LED_SET for LED7 to 1");
-        i_frame = {`CMD_LED_SET, 8'h07, {7'hA, 1'h0}}; // left shift payload as only 7 first bit have a value
+        // Test 3: CMD_LED_SET for LED7 (addr 8) to 60%
+        $display("Test 3: Sending CMD_LED_SET for LED7 to 60");
+        i_frame = {`CMD_LED_SET, 8'h07, {7'h3C, 1'h0}}; // left shift payload as only 7 first bit have a value
         tx_enb = 1'b1;
 
         // Wait for transaction completion
@@ -176,10 +176,10 @@ module spi_top_tb (
         tx_enb = 1'b0;
         @(posedge cs);
         #(5 * `SLAVE_CLK_NS);
-        if (led8 == 1'b1) begin
-            $display("PASS: LED8 brightness set to 0x%b", led8);
+        if (spi_top_uut.led_brightness[7] == 7'h3C) begin
+            $display("PASS: LED8 brightness set to 0x%h", spi_top_uut.led_brightness[7]);
         end else begin
-            $display("FAIL: LED8 brightness is 0x%b (expected 1)", led8);
+            $display("FAIL: LED8 brightness is 0x%h (expected 3C)", spi_top_uut.led_brightness[7]);
         end
 
         #(2 * `MASTER_CLK_NS);
@@ -194,7 +194,7 @@ module spi_top_tb (
         tx_enb = 1'b0;
         @(posedge cs);
         #(5 * `SLAVE_CLK_NS);
-        if (led1 == 1'b1 && led8 == 1'b1) begin
+        if (spi_top_uut.led_brightness[0] == 7'h28 && spi_top_uut.led_brightness[7] == 7'h3C) begin
             $display("PASS: Invalid addr did not change existing brightness");
         end else begin
             $display("FAIL: Brightness changed unexpectedly");
@@ -204,7 +204,7 @@ module spi_top_tb (
 
         // Test 5: CMD_LED_SET for LED4 (addr 3) to 0x00 (off)
         $display("Test 5: Sending CMD_LED_SET for LED3 to 0x00");
-        i_frame = {`CMD_LED_SET, 8'h03, {7'hB, 1'h0}};
+        i_frame = {`CMD_LED_SET, 8'h03, {7'h0, 1'h0}};
         tx_enb = 1'b1;
 
         // Wait for transaction completion
@@ -212,10 +212,10 @@ module spi_top_tb (
         tx_enb = 1'b0;
         @(posedge cs);
         #(5 * `SLAVE_CLK_NS);
-        if (led4 == 1'b0) begin
-            $display("PASS: LED4 brightness set to 0x%b", led4);
+        if (spi_top_uut.led_brightness[3] == 7'h0) begin
+            $display("PASS: LED4 brightness set to 0x%h", spi_top_uut.led_brightness[3]);
         end else begin
-            $display("FAIL: LED4 brightness is 0x%h (expected 0x00)", led4);
+            $display("FAIL: LED4 brightness is 0x%h (expected 0)", spi_top_uut.led_brightness[3]);
         end
 
         // Test 6: CMD_LED_READ for LED8 (addr 7)
@@ -228,13 +228,13 @@ module spi_top_tb (
         tx_enb = 1'b0;
         @(posedge cs);
         #(`SLAVE_CLK_NS);
-        if (o_frame == 0000001) begin
-            $display("PASS: slave reported LED7 value: %h", o_frame);
+        if (o_frame == 7'h3C) begin
+            $display("PASS: slave reported LED8 value: %h", o_frame);
         end else begin
-            $display("FAIL: slave reported LED7 value: %h, expected 1", o_frame);
+            $display("FAIL: slave reported LED8 value: %h, expected 3C", o_frame);
         end
 
-        // Test 7: CMD_LED_READ for LED5 (addr 4)
+        // Test 7: CMD_LED_READ for LED5 (addr 4) to 0%
         $display("Test 7: Sending CMD_LED_READ for LED5 and expecting response");
         i_frame = {`CMD_LED_READ, 8'h04, 8'hC}; // payload section irrelevant
         tx_enb = 1'b1;
@@ -244,15 +244,15 @@ module spi_top_tb (
         tx_enb = 1'b0;
         @(posedge cs);
         #(`SLAVE_CLK_NS);
-        if (o_frame == 0000000) begin
+        if (o_frame == 7'h0) begin
             $display("PASS: slave reported LED5 value: %h", o_frame);
         end else begin
             $display("FAIL: slave reported LED5 value: %h, expected 0", o_frame);
         end
 
-        // Test 8: CMD_LED_SET for LED5 (addr 4)
-        $display("Test 8: Sending CMD_LED_SET for LED5 to 0x01");
-        i_frame = {`CMD_LED_SET, 8'h04, {7'hA, 1'h0}}; // payload section irrelevant
+        // Test 8: CMD_LED_SET for LED5 (addr 4) to 95%
+        $display("Test 8: Sending CMD_LED_SET for LED5 to 95");
+        i_frame = {`CMD_LED_SET, 8'h04, {7'h5F, 1'h0}}; // payload section irrelevant
         tx_enb = 1'b1;
 
         // Wait for transaction completion
@@ -260,10 +260,10 @@ module spi_top_tb (
         tx_enb = 1'b0;
         @(posedge cs);
         #(5 * `SLAVE_CLK_NS);
-        if (led5 == 1'b1) begin
-            $display("PASS: LED5 brightness set to 0x%b", led5);
+        if (spi_top_uut.led_brightness[4] == 7'h5F) begin
+            $display("PASS: LED5 brightness set to 0x%h", spi_top_uut.led_brightness[4]);
         end else begin
-            $display("FAIL: LED5 brightness is 0x%b (expected 1)", led5);
+            $display("FAIL: LED5 brightness is 0x%h (expected 5F)", spi_top_uut.led_brightness[4]);
         end
 
         // Test 9: CMD_LED_READ for LED5 (addr 4)
@@ -276,14 +276,16 @@ module spi_top_tb (
         tx_enb = 1'b0;
         @(posedge cs);
         #(`SLAVE_CLK_NS);
-        if (o_frame == 0000000) begin
+        if (o_frame == 7'h5F) begin
             $display("PASS: slave reported LED5 value: %h", o_frame);
         end else begin
-            $display("FAIL: slave reported LED5 value: %h, expected 0", o_frame);
+            $display("FAIL: slave reported LED5 value: %h, expected 5F", o_frame);
         end
         
         #(5 * `SLAVE_CLK_NS);
         $finish;
+
+        // PWM still doesn't seem to work, all LEDs are xxx
 
     end
 
