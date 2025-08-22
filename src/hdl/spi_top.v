@@ -71,14 +71,19 @@ module spi_top (
     // PWM instantiations (one per LED)
     wire [`NUM_LEDS-1:0] pwm_out;
     assign {led8, led7, led6, led5, led4, led3, led2, led1} = pwm_out;
-    // assign debug_led0_pwm = pwm_out[0];
+    
+    reg pwm_enb = 1'b0;  // start disabled for PWM init
+
+    always @(posedge sysclk) begin
+        pwm_enb <= 1'b1;  // enable after first clock cycle
+    end
 
     genvar j;
     generate
         for (j = 0; j < `NUM_LEDS; j = j + 1) begin : pwm_gen
             pwm pwm_inst (
                 .sysclk(sysclk),
-                .i_enb(1'b1),
+                .i_enb(pwm_enb),
                 .i_d(led_brightness[j]),
                 .o_pwm(pwm_out[j]),
                 .o_cnt()

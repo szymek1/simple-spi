@@ -28,12 +28,11 @@ module pwm (
     input  wire                         i_enb,
     input  wire [`BRIGHTNESS_WIDTH-1:0] i_d,   // duty cycle
     output reg                          o_pwm,
-    output reg  [`BRIGHTNESS_WIDTH-1:0] o_cnt // pmw register direct access
-
+    output reg  [`BRIGHTNESS_WIDTH-1:0] o_cnt  // pwm register direct access
 );
 
-    localparam                  br_min = (2**`BRIGHTNESS_WIDTH - 1) * `LED_MIN_BRIGHTNESS / 100;
-    localparam                  br_max = (2**`BRIGHTNESS_WIDTH - 1) * `LED_MAX_BRIGHTNESS / 100;
+    localparam br_min = (2**`BRIGHTNESS_WIDTH - 1) * `LED_MIN_BRIGHTNESS / 100;
+    localparam br_max = (2**`BRIGHTNESS_WIDTH - 1) * `LED_MAX_BRIGHTNESS / 100;
 
     reg [`BRIGHTNESS_WIDTH-1:0] r_d;
 
@@ -41,11 +40,10 @@ module pwm (
         if (!i_enb) begin
             o_cnt <= 2**`BRIGHTNESS_WIDTH - 1;
             o_pwm <= 1'b0;
+            r_d   <= 0; 
         end else begin
-            // counter will overflow back to 0
-            o_cnt <= o_cnt + 1'd1;
-            // o_pwm <= ((o_cnt + 1'd1) < r_d) ? 1'b0 : 1'b1; // >=
-            o_pwm <= (o_cnt < r_d) ? 1'b0 : 1'b1;
+            o_cnt <= o_cnt + 1'b1;  // counter overflows to 0
+            o_pwm <= (o_cnt < r_d) ? 1'b1 : 1'b0;
         end
 
         if (o_cnt == (2**`BRIGHTNESS_WIDTH - 1)) begin
@@ -53,7 +51,6 @@ module pwm (
             else if (i_d >= `LED_MAX_BRIGHTNESS) r_d <= br_max;
             else                                 r_d <= i_d;
         end
-
     end
 
 endmodule

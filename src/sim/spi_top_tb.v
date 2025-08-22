@@ -285,8 +285,6 @@ module spi_top_tb (
         #(5 * `SLAVE_CLK_NS);
         $finish;
 
-        // PWM still doesn't seem to work, all LEDs are xxx
-
     end
 
 endmodule
