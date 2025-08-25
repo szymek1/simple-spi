@@ -35,6 +35,13 @@ xvlog.*
 *.backup.*
 *.debug
 
+# for ESP32
+src/esp/build/
+
+# ESP idf files
+sdkconfig
+sdkconfig.old
+
 # log files
 *.log
 *.jou
@@ -79,3 +86,5 @@ unisims
 
 # some data specific files
 *.coe
+
+.vscode
